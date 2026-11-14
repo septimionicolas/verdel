@@ -33,11 +33,11 @@ server {
 }
 ```
 
-Con un proxy propio delante, `TRUST_PROXY=true`.
+Con un proxy delante, `TRUST_PROXY=true`.
 
 ### En Railway
 
-Nuevo proyecto desde el repo, variables del `.env.example`, un volumen montado en `/data` con `DATA_DIR=/data`, y «Generate Domain».
+Nuevo proyecto desde el repo, variables del `.env.example` con `TRUST_PROXY=true`, un volumen montado en `/data` con `DATA_DIR=/data`, y «Generate Domain».
 
 ### El asistente (opcional)
 
