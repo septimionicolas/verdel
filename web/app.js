@@ -8,6 +8,9 @@ const select = (selector) => document.querySelector(selector);
 const escapeHtml = (text) => String(text).replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[char]);
 const price = (cents) => (CONFIG.showCurrencySign ? '$' : '') + formatAmount(cents);
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const viewTransitions = !reducedMotion && typeof document.startViewTransition === 'function';
+const modestDevice = navigator.hardwareConcurrency <= 4 || navigator.deviceMemory <= 2;
+const FULL_GLASS_UNITS = 8;
 const optionIndex = buildOptionIndex();
 const STORAGE_KEY = 'verdel-order';
 
@@ -63,7 +66,11 @@ if (table !== null) {
   chip.hidden = false;
 }
 
+if (viewTransitions) document.body.classList.add('has-view-transitions');
+
 const order = new Map();
+let sheetOpen = false;
+let view = 'order';
 
 function saveOrder() {
   try {
@@ -125,12 +132,31 @@ function paintQr() {
   select('#qr-table').textContent = tableLabel(table);
 }
 
-function showView(name) {
-  orderView.hidden = name !== 'order';
-  qrView.hidden = name !== 'qr';
-  select('#sheet-title').textContent = name === 'qr' ? 'Mostrale este código' : 'Mi pedido';
-  if (name === 'qr') paintQr();
+function transition(update) {
+  if (!viewTransitions) {
+    update();
+    return;
+  }
+  try {
+    document.startViewTransition(update).updateCallbackDone.catch(() => {});
+  } catch {
+    update();
+  }
+}
+
+function renderSheet() {
+  sheet.hidden = !sheetOpen;
+  orderView.hidden = view !== 'order';
+  qrView.hidden = view !== 'qr';
+  select('#sheet-title').textContent = view === 'qr' ? 'Mostrale este código' : 'Mi pedido';
+  if (!sheetOpen) return;
+  if (view === 'qr') paintQr();
   else paintOrderList();
+}
+
+function showView(name) {
+  view = name;
+  transition(renderSheet);
 }
 
 function paint() {
@@ -141,23 +167,31 @@ function paint() {
     button.querySelector('.option-count').textContent = quantity > 0 ? quantity : '+';
   });
   orderBar.hidden = units === 0;
+  orderBar.style.setProperty('--fill', String(Math.min(1, units / FULL_GLASS_UNITS)));
   document.body.classList.toggle('has-order-bar', units > 0);
   select('#order-bar-units').textContent = units === 1 ? '1 producto' : `${units} productos`;
   select('#order-bar-total').textContent = `$${formatAmount(cents)}`;
-  if (sheet.hidden) return;
+  if (!sheetOpen) return;
   if (units === 0) closeSheet();
-  else showView('order');
+  else if (view === 'order') paintOrderList();
 }
 
 function openSheet() {
-  sheet.hidden = false;
-  showView('order');
-  select('#sheet-close').focus();
+  sheetOpen = true;
+  view = 'order';
+  transition(() => {
+    renderSheet();
+    select('#sheet-close').focus({ preventScroll: true });
+  });
 }
 
 function closeSheet() {
-  sheet.hidden = true;
-  if (!orderBar.hidden) orderBar.focus();
+  if (!sheetOpen) return;
+  sheetOpen = false;
+  transition(() => {
+    renderSheet();
+    if (!orderBar.hidden) orderBar.focus({ preventScroll: true });
+  });
 }
 
 let toastTimer = 0;
@@ -175,6 +209,16 @@ function replay(element, className) {
   element.classList.add(className);
 }
 
+let burstBubbles = () => {};
+
+function celebrateAdd() {
+  replay(orderBar, 'bump');
+  burstBubbles();
+  try {
+    if (navigator.vibrate) navigator.vibrate(10);
+  } catch {}
+}
+
 const tableSelect = select('#table-select');
 tableSelect.innerHTML = '<option value="">Elegí tu mesa</option>' + Array.from({ length: VENUE.tableCount }, (_, position) => `<option value="${position + 1}">Mesa ${position + 1}</option>`).join('') + '<option value="0">Barra</option>';
 tableSelect.addEventListener('change', () => {
@@ -187,7 +231,7 @@ document.addEventListener('click', (event) => {
   if (option) {
     changeQuantity(option.dataset.key, 1);
     replay(option, 'pulse');
-    replay(orderBar, 'bump');
+    celebrateAdd();
     return;
   }
   const go = event.target.closest('[data-go]');
@@ -203,7 +247,7 @@ document.addEventListener('click', (event) => {
   const addSuggestion = event.target.closest('[data-add-suggestion]');
   if (addSuggestion) {
     TABLE_SUGGESTIONS[Number(addSuggestion.dataset.addSuggestion)].keys.forEach((key) => changeQuantity(key, 1));
-    replay(orderBar, 'bump');
+    celebrateAdd();
     notify('Sumado a tu pedido');
     return;
   }
@@ -226,7 +270,7 @@ document.addEventListener('click', (event) => {
 });
 
 document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape' && !sheet.hidden) closeSheet();
+  if (event.key === 'Escape' && sheetOpen) closeSheet();
 });
 
 loadOrder();
@@ -251,31 +295,35 @@ if (!reducedMotion) {
   brand.addEventListener('click', () => replay(brand, 'is-pouring'));
 }
 
-const canvas = select('#bubbles');
-const context = canvas.getContext('2d');
-let bubbles = [];
-let width = 0;
-let height = 0;
+const MAX_PIXEL_RATIO = 1.5;
+const scenes = [];
 let frame = 0;
-let running = false;
 
-function measure() {
-  const box = canvas.getBoundingClientRect();
-  const ratio = Math.min(window.devicePixelRatio || 1, 2);
-  width = box.width;
-  height = box.height;
-  canvas.width = Math.round(width * ratio);
-  canvas.height = Math.round(height * ratio);
-  context.setTransform(ratio, 0, 0, ratio, 0, 0);
+function createScene(canvas) {
+  const context = canvas.getContext('2d');
+  if (!context) return null;
+  const scene = { canvas, context, width: 0, height: 0, bubbles: [], active: true };
+  scene.measure = () => {
+    const box = canvas.getBoundingClientRect();
+    const ratio = Math.min(window.devicePixelRatio || 1, MAX_PIXEL_RATIO);
+    scene.width = box.width;
+    scene.height = box.height;
+    canvas.width = Math.round(scene.width * ratio);
+    canvas.height = Math.round(scene.height * ratio);
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
+  };
+  scene.measure();
+  return scene;
 }
 
-function createBubble(y) {
-  return { x: Math.random() * width, y: y === undefined ? height + 10 : y, radius: 1.5 + Math.random() * 4.5, speed: 0.25 + Math.random() * 0.6, phase: Math.random() * 6.28, alpha: 0.1 + Math.random() * 0.2 };
+function createHeroBubble(scene, y) {
+  return { x: Math.random() * scene.width, y: y === undefined ? scene.height + 10 : y, radius: 1.5 + Math.random() * 4.5, speed: 0.25 + Math.random() * 0.6, phase: Math.random() * 6.28, alpha: 0.1 + Math.random() * 0.2 };
 }
 
-function draw() {
-  context.clearRect(0, 0, width, height);
-  for (const bubble of bubbles) {
+function drawHero(scene) {
+  const { context } = scene;
+  context.clearRect(0, 0, scene.width, scene.height);
+  for (const bubble of scene.bubbles) {
     bubble.y -= bubble.speed;
     bubble.phase += 0.02;
     context.beginPath();
@@ -283,27 +331,97 @@ function draw() {
     context.strokeStyle = `rgba(244,174,37,${bubble.alpha})`;
     context.lineWidth = 1.4;
     context.stroke();
-    if (bubble.y < -10) Object.assign(bubble, createBubble());
+    if (bubble.y < -10) Object.assign(bubble, createHeroBubble(scene));
   }
-  frame = requestAnimationFrame(draw);
 }
 
-if (!reducedMotion && context) {
-  measure();
-  bubbles = Array.from({ length: 24 }, () => createBubble(Math.random() * height));
-  window.addEventListener('resize', measure);
-  if ('IntersectionObserver' in window) {
-    new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting && !running) {
-        running = true;
-        draw();
-      } else if (!entry.isIntersecting && running) {
-        running = false;
-        cancelAnimationFrame(frame);
-      }
-    }).observe(canvas);
-  } else {
-    running = true;
-    draw();
+function createAmbientBubble(scene, y, burst) {
+  return {
+    x: burst ? scene.width / 2 + (Math.random() - 0.5) * scene.width * 0.8 : Math.random() * scene.width,
+    y,
+    radius: 2 + Math.random() * (burst ? 5 : 8),
+    speed: burst ? 2.4 + Math.random() * 3 : 0.18 + Math.random() * 0.5,
+    depth: 0.12 + Math.random() * 0.5,
+    phase: Math.random() * 6.28,
+    alpha: burst ? 0.25 + Math.random() * 0.25 : 0.06 + Math.random() * 0.14,
+    burst,
+  };
+}
+
+let lastScroll = window.scrollY;
+
+function drawAmbient(scene) {
+  const { context, width, height } = scene;
+  const scroll = window.scrollY;
+  const drift = Math.max(-60, Math.min(60, scroll - lastScroll));
+  lastScroll = scroll;
+  context.clearRect(0, 0, width, height);
+  for (const bubble of scene.bubbles) {
+    bubble.y -= bubble.speed + drift * bubble.depth;
+    bubble.phase += 0.015;
+    if (bubble.burst) {
+      bubble.speed = Math.max(0.6, bubble.speed * 0.988);
+      bubble.alpha *= 0.996;
+    } else if (bubble.y < -20) {
+      bubble.y = height + 20;
+      bubble.x = Math.random() * width;
+    } else if (bubble.y > height + 30) {
+      bubble.y = -20;
+      bubble.x = Math.random() * width;
+    }
+    const x = bubble.x + Math.sin(bubble.phase) * 10 * bubble.depth;
+    context.beginPath();
+    context.arc(x, bubble.y, bubble.radius, 0, 6.283);
+    context.strokeStyle = `rgba(244,174,37,${bubble.alpha})`;
+    context.lineWidth = 1.4;
+    context.stroke();
+    context.beginPath();
+    context.arc(x - bubble.radius * 0.3, bubble.y - bubble.radius * 0.3, bubble.radius * 0.22, 0, 6.283);
+    context.fillStyle = `rgba(247,239,221,${bubble.alpha * 0.9})`;
+    context.fill();
   }
+  scene.bubbles = scene.bubbles.filter((bubble) => !bubble.burst || bubble.y > -20);
+}
+
+function tick() {
+  for (const scene of scenes) if (scene.active) scene.draw(scene);
+  frame = requestAnimationFrame(tick);
+}
+
+function startLoop() {
+  cancelAnimationFrame(frame);
+  if (!document.hidden && scenes.some((scene) => scene.active)) frame = requestAnimationFrame(tick);
+}
+
+if (!reducedMotion) {
+  try {
+    const hero = createScene(select('#bubbles'));
+    if (hero) {
+      hero.draw = drawHero;
+      hero.bubbles = Array.from({ length: 24 }, () => createHeroBubble(hero, Math.random() * hero.height));
+      scenes.push(hero);
+      if ('IntersectionObserver' in window) {
+        new IntersectionObserver(([entry]) => {
+          hero.active = entry.isIntersecting;
+          startLoop();
+        }).observe(hero.canvas);
+      }
+    }
+    const backdrop = select('#backdrop');
+    if (!modestDevice) backdrop.classList.add('is-live');
+    const ambient = modestDevice ? null : createScene(select('#ambient'));
+    if (!ambient) backdrop.classList.remove('is-live');
+    if (ambient) {
+      ambient.draw = drawAmbient;
+      ambient.bubbles = Array.from({ length: 28 }, () => createAmbientBubble(ambient, Math.random() * ambient.height, false));
+      scenes.push(ambient);
+      burstBubbles = () => {
+        if (ambient.bubbles.length > 120) return;
+        for (let count = 0; count < 16; count += 1) ambient.bubbles.push(createAmbientBubble(ambient, ambient.height + 10 + Math.random() * 40, true));
+      };
+    }
+    window.addEventListener('resize', () => scenes.forEach((scene) => scene.measure()));
+    document.addEventListener('visibilitychange', startLoop);
+    startLoop();
+  } catch {}
 }
