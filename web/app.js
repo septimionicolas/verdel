@@ -52,29 +52,20 @@ function renderRoundBuilder() {
     const chips = question.choices.map((choice) => `<button type="button" data-question="${question.id}" data-value="${escapeHtml(choice.value)}" aria-pressed="false">${escapeHtml(choice.label)}</button>`).join('');
     return `<div class="round-question"><p id="question-${question.id}">${escapeHtml(question.label)}</p><div class="round-chips" role="group" aria-labelledby="question-${question.id}">${chips}</div></div>`;
   }).join('');
-  return `<section class="round-builder" id="round-builder" aria-labelledby="round-builder-title"><h2 id="round-builder-title">¿Qué tomamos?</h2><p class="round-builder-note">Tres toques y te armamos la ronda.</p>${questions}<div class="round-out" id="round-out" aria-live="polite"></div></section>`;
+  return `<section class="round-builder" id="round-builder" aria-labelledby="round-builder-title"><h2 id="round-builder-title">¿Qué tomamos?</h2><p class="round-builder-note">Tres toques y te armamos la ronda.</p>${questions}<form class="round-free" id="round-free" hidden><label for="round-free-text">O contanos con tus palabras</label><div class="round-free-row"><input id="round-free-text" name="text" type="text" maxlength="200" autocomplete="off" enterkeyhint="send" placeholder="Somos 5, uno no toma, 40 lucas"><button type="submit" class="button" id="round-free-send">Armar</button></div><p class="round-free-status" id="round-free-status" role="status" aria-live="polite"></p></form><div class="round-out" id="round-out" aria-live="polite"></div></section>`;
 }
 
-function roundLines(keys) {
+function roundLines(pairs) {
   const counts = new Map();
-  for (const key of keys) if (optionIndex.has(key)) counts.set(key, (counts.get(key) || 0) + 1);
+  for (const { key, quantity } of pairs) if (optionIndex.has(key) && Number.isInteger(quantity) && quantity > 0) counts.set(key, (counts.get(key) || 0) + quantity);
   return [...counts].map(([key, quantity]) => ({ key, quantity, entry: optionIndex.get(key) }));
 }
 
-function paintRound() {
-  document.querySelectorAll('[data-question]').forEach((button) => button.setAttribute('aria-pressed', String(answers[button.dataset.question] === button.dataset.value)));
-  const out = select('#round-out');
-  const missing = ROUND_QUESTIONS.filter((question) => !answers[question.id]).length;
-  if (missing) {
-    out.innerHTML = `<p class="round-wait">${missing === ROUND_QUESTIONS.length ? 'Elegí una opción de cada fila.' : missing === 1 ? 'Te falta un toque.' : `Te faltan ${missing} toques.`}</p>`;
-    return;
-  }
-  const round = pickRound(answers);
-  const lines = round ? roundLines(round.keys) : [];
-  if (!lines.length) {
-    out.innerHTML = '<p class="round-wait">Para esta combinación no tenemos ronda armada: mirá la carta.</p>';
-    return;
-  }
+const keysToPairs = (keys) => keys.map((key) => ({ key, quantity: 1 }));
+let shownRound = null;
+
+function paintRoundResult(phrase, lines) {
+  shownRound = lines;
   let totalCents = 0;
   let savingCents = 0;
   const rows = lines.map(({ quantity, entry }) => {
@@ -83,7 +74,69 @@ function paintRound() {
     return `<li><span>${quantity > 1 ? `${quantity} × ` : ''}${escapeHtml(entry.name)}</span><span class="numeric">${price(quantity * entry.option.priceCents)}</span></li>`;
   }).join('');
   const saving = savingCents ? `<span class="round-saving">Ahorrás $${formatAmount(savingCents)} con las promos</span>` : '';
-  out.innerHTML = `<div class="round-result"><p class="round-phrase">${escapeHtml(round.phrase)}</p><ul class="round-list">${rows}</ul><div class="round-footer"><p>Total<strong class="numeric">$${formatAmount(totalCents)}</strong>${saving}</p><button type="button" class="button" id="add-round">Sumar a mi pedido</button></div><button type="button" class="link-button" id="reset-round">Volver a elegir</button></div>`;
+  select('#round-out').innerHTML = `<div class="round-result"><p class="round-phrase">${escapeHtml(phrase)}</p><ul class="round-list">${rows}</ul><div class="round-footer"><p>Total<strong class="numeric">$${formatAmount(totalCents)}</strong>${saving}</p><button type="button" class="button" id="add-round">Sumar a mi pedido</button></div><button type="button" class="link-button" id="reset-round">Volver a elegir</button></div>`;
+}
+
+function paintRound() {
+  document.querySelectorAll('[data-question]').forEach((button) => button.setAttribute('aria-pressed', String(answers[button.dataset.question] === button.dataset.value)));
+  const out = select('#round-out');
+  shownRound = null;
+  const missing = ROUND_QUESTIONS.filter((question) => !answers[question.id]).length;
+  if (missing) {
+    out.innerHTML = `<p class="round-wait">${missing === ROUND_QUESTIONS.length ? 'Elegí una opción de cada fila.' : missing === 1 ? 'Te falta un toque.' : `Te faltan ${missing} toques.`}</p>`;
+    return;
+  }
+  const round = pickRound(answers);
+  const lines = round ? roundLines(keysToPairs(round.keys)) : [];
+  if (!lines.length) {
+    out.innerHTML = '<p class="round-wait">Para esta combinación no tenemos ronda armada: mirá la carta.</p>';
+    return;
+  }
+  paintRoundResult(round.phrase, lines);
+}
+
+const FREE_ROUND_ERROR = 'No pudimos armarla ahora. Probá con las tres preguntas.';
+let freeRoundBusy = false;
+
+async function enableFreeRound() {
+  if (!tracking) return;
+  try {
+    const response = await fetch(`${CONFIG.apiBase}/api/health`, { cache: 'no-store' });
+    if (response.ok && (await response.json()).advisor === true) select('#round-free').hidden = false;
+  } catch {}
+}
+
+async function askFreeRound(form) {
+  const input = select('#round-free-text');
+  const text = input.value.trim();
+  if (freeRoundBusy || !text) return;
+  const status = select('#round-free-status');
+  const send = select('#round-free-send');
+  freeRoundBusy = true;
+  send.disabled = true;
+  form.setAttribute('aria-busy', 'true');
+  status.textContent = 'Armando tu ronda…';
+  let lines = [];
+  let phrase = '';
+  try {
+    const response = await fetch(`${CONFIG.apiBase}/api/suggestions`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text }) });
+    if (response.ok) {
+      const data = await response.json();
+      phrase = typeof data.phrase === 'string' ? data.phrase : '';
+      lines = Array.isArray(data.lines) ? roundLines(data.lines.filter((line) => line && typeof line.key === 'string' && line.quantity <= 9)) : [];
+    }
+  } catch {}
+  freeRoundBusy = false;
+  send.disabled = false;
+  form.removeAttribute('aria-busy');
+  if (!phrase || !lines.length) {
+    status.textContent = FREE_ROUND_ERROR;
+    return;
+  }
+  status.textContent = '';
+  for (const question of ROUND_QUESTIONS) answers[question.id] = '';
+  document.querySelectorAll('[data-question]').forEach((button) => button.setAttribute('aria-pressed', 'false'));
+  paintRoundResult(phrase, lines);
 }
 
 const menu = select('#menu');
@@ -480,9 +533,8 @@ document.addEventListener('click', (event) => {
     return;
   }
   if (event.target.closest('#add-round')) {
-    const round = pickRound(answers);
-    if (!round) return;
-    roundLines(round.keys).forEach(({ key, quantity }) => changeQuantity(key, quantity));
+    if (!shownRound) return;
+    shownRound.forEach(({ key, quantity }) => changeQuantity(key, quantity));
     celebrateAdd();
     notify('Sumado a tu pedido');
     return;
@@ -525,6 +577,11 @@ if (tracking) {
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) pollWatch();
   });
+  select('#round-free').addEventListener('submit', (event) => {
+    event.preventDefault();
+    askFreeRound(event.currentTarget);
+  });
+  enableFreeRound();
 }
 
 function activate(id) {

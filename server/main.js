@@ -8,7 +8,8 @@ import { createBot } from './bot.js';
 import { missingSettings, readConfig } from './config.js';
 import { createHttpHandler } from './http.js';
 import { createService } from './service.js';
-import { ROLE_NAMES } from './night.js';
+import { createSuggester } from './suggestions.js';
+import { ROLE_NAMES, currentNight } from './night.js';
 import { openEventStore } from './store.js';
 import { createTelegram, pollUpdates } from './telegram.js';
 
@@ -23,9 +24,10 @@ const telegram = config.botToken ? connect(config.botToken) : null;
 const stationTelegrams = Object.fromEntries(Object.entries(config.stationBotTokens).map(([station, token]) => [station, connect(token)]));
 const advisor = config.anthropicApiKey ? createAdvisor({ apiKey: config.anthropicApiKey, apiBase: config.anthropicApiBase, model: config.advisorModel, log }) : null;
 const service = createService({ store: openEventStore(config.dataDir), telegram, stationTelegrams, advisor, optionIndex: buildOptionIndex(), venue: VENUE, reportsDir: join(config.dataDir, 'reports'), log });
+const suggester = advisor ? createSuggester({ advisor, optionIndex: buildOptionIndex(), nightLimit: config.advisorNightLimit, nightNumber: () => currentNight(service.state).number, log }) : null;
 const auth = createAuth({ pin: config.staffPin, secret: config.sessionSecret });
 const webDir = fileURLToPath(new URL('../web/', import.meta.url));
-const server = createServer(createHttpHandler({ service, auth, config, webDir, ready: missing.length === 0, advisor }));
+const server = createServer(createHttpHandler({ service, auth, config, webDir, ready: missing.length === 0, advisor, suggester }));
 
 server.listen(config.port, () => log('listening', { port: config.port, telegram: Boolean(telegram), stationBots: Object.keys(stationTelegrams), advisor: Boolean(advisor), missing }));
 const listen = (client, roles) => pollUpdates(client, createBot({ service, telegram: client, venue: VENUE, setupKey: config.setupKey, roles }).handleUpdate, { signal: stopper.signal, log });

@@ -56,6 +56,14 @@ body.has-order-bar .app{padding-bottom:104px}
 .round-chips{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px;padding:4px;background:var(--bottle);border-radius:14px}
 .round-chips button{border:0;background:transparent;border-radius:10px;min-height:44px;padding:8px 4px;font-weight:750;font-size:15px;color:var(--sage);transition:background .18s,color .18s}
 .round-chips button[aria-pressed="true"]{background:var(--foam);color:var(--bottle)}
+.round-free{margin-top:16px}
+.round-free label{display:block;margin:0 0 6px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--sage)}
+.round-free-row{display:flex;gap:8px}
+.round-free input{flex:1;min-width:0;min-height:48px;border-radius:12px;border:1.5px solid var(--bottle-line);background:var(--bottle);color:var(--foam);padding:0 12px;font-size:16px}
+.round-free input::placeholder{color:var(--sage);opacity:.8}
+.round-free .button{flex:none;min-height:48px}
+.round-free .button:disabled{opacity:.6}
+.round-free-status{margin:8px 0 0;min-height:1.4em;color:var(--sage);font-size:14.5px}
 .round-out{margin-top:16px;padding-top:14px;border-top:1px dashed var(--bottle-line);min-height:92px}
 .round-wait{margin:0;color:var(--sage);font-size:15px}
 .round-result{animation:round-in .3s ease-out}

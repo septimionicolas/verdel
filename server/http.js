@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { createLimiter, clientOrigin } from './limiter.js';
 import { currentNight } from './night.js';
+import { cleanSuggestionText } from './suggestions.js';
 
 const CONTENT_TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.json': 'application/json; charset=utf-8' };
 const SERVED_CONFIG = "export const CONFIG = {\n  apiBase: '',\n  showCurrencySign: false,\n};\n";
@@ -19,9 +20,10 @@ async function readJson(request) {
   return JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
 }
 
-export function createHttpHandler({ service, auth, config, webDir, ready, advisor = null, now = Date.now }) {
+export function createHttpHandler({ service, auth, config, webDir, ready, advisor = null, suggester = null, now = Date.now }) {
   const root = resolve(webDir);
   const statusLimiter = createLimiter({ limit: 40, now });
+  const suggestionLimiter = createLimiter({ limit: 5, now });
 
   function send(response, status, body, headers = {}) {
     const payload = typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body);
@@ -70,6 +72,15 @@ export function createHttpHandler({ service, auth, config, webDir, ready, adviso
         }
       }
       if (request.method !== 'POST') return send(response, 405, { error: 'METHOD_NOT_ALLOWED' }, cors);
+      if (url.pathname === '/api/suggestions') {
+        if (!suggester) return send(response, 503, { error: 'ADVISOR_OFF' }, cors);
+        if (!suggestionLimiter.take(clientOrigin(request, config.trustProxy))) return send(response, 429, { error: 'RATE_LIMITED' }, cors);
+        const text = cleanSuggestionText((await readJson(request))?.text);
+        if (!text) return send(response, 422, { error: 'TEXT_REQUIRED' }, cors);
+        const result = await suggester.suggest(text);
+        if (result.error) return send(response, result.error === 'RATE_LIMITED' ? 429 : 502, { error: result.error }, cors);
+        return send(response, 200, result, { ...cors, 'cache-control': 'no-store' });
+      }
       if (!ready) return send(response, 503, { error: 'NOT_CONFIGURED' }, cors);
       const body = await readJson(request);
 
