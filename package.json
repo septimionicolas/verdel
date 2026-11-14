@@ -1,0 +1,15 @@
+{
+  "name": "verdel",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Carta digital de Verdel con pedidos por QR, avisos a Telegram y reporte de cierre",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server/main.js",
+    "test": "node --test",
+    "verificar": "node --test"
+  }
+}
