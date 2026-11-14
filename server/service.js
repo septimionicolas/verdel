@@ -5,17 +5,19 @@ import { applyEvent, clockLabel, currentNight, findDuplicate, findLatestByCode, 
 import { kitchenKeyboard, kitchenText, orderKeyboard, orderText, ownerLine, readyAlert, summaryText } from './messages.js';
 import { nightTitle, renderReport } from './report.js';
 
-export function createService({ store, telegram, optionIndex, venue, reportsDir = null, now = Date.now, log = () => {} }) {
+export function createService({ store, telegram, stationTelegrams = {}, optionIndex, venue, reportsDir = null, now = Date.now, log = () => {} }) {
   const state = replay(store.events);
   const time = clockLabel(venue.timeZone);
   const record = (event) => applyEvent(state, store.append(event));
   const chatOf = (role) => state.bindings[role]?.chatId;
+  const clientOf = (role) => stationTelegrams[role] || telegram;
 
   async function send(role, text, extra = {}) {
     const chatId = chatOf(role);
-    if (!telegram || !chatId) return null;
+    const client = clientOf(role);
+    if (!client || !chatId) return null;
     try {
-      return await telegram.call('sendMessage', { chat_id: chatId, text, parse_mode: 'HTML', ...extra });
+      return await client.call('sendMessage', { chat_id: chatId, text, parse_mode: 'HTML', ...extra });
     } catch (error) {
       log('telegram_send_failed', { role, message: error.message });
       return null;
@@ -23,16 +25,15 @@ export function createService({ store, telegram, optionIndex, venue, reportsDir 
   }
 
   async function refresh(order, askingVoid = false) {
-    if (!telegram) return;
     const edits = [];
     const salon = order.messages.salon;
-    if (salon) edits.push({ ...salon, text: orderText(order, time), reply_markup: orderKeyboard(order, askingVoid) });
+    if (salon) edits.push({ ...salon, client: clientOf('salon'), text: orderText(order, time), reply_markup: orderKeyboard(order, askingVoid) });
     for (const station of stationsOf(order)) {
       const message = order.messages[station];
-      if (message) edits.push({ ...message, text: kitchenText(order, station, time), reply_markup: kitchenKeyboard(order, station) });
+      if (message) edits.push({ ...message, client: clientOf(station), text: kitchenText(order, station, time), reply_markup: kitchenKeyboard(order, station) });
     }
-    for (const edit of edits) {
-      await telegram.call('editMessageText', { chat_id: edit.chatId, message_id: edit.messageId, text: edit.text, parse_mode: 'HTML', reply_markup: edit.reply_markup }).catch((error) => log('telegram_edit_failed', { message: error.message }));
+    for (const edit of edits.filter((item) => item.client)) {
+      await edit.client.call('editMessageText', { chat_id: edit.chatId, message_id: edit.messageId, text: edit.text, parse_mode: 'HTML', reply_markup: edit.reply_markup }).catch((error) => log('telegram_edit_failed', { message: error.message }));
     }
   }
 
