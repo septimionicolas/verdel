@@ -9,6 +9,10 @@ export function readConfig(env = process.env) {
     setupKey: env.SETUP_KEY || '',
     sessionSecret: env.SESSION_SECRET || '',
     trustProxy: env.TRUST_PROXY === 'true',
+    anthropicApiKey: env.ANTHROPIC_API_KEY || '',
+    anthropicApiBase: env.ANTHROPIC_API_BASE || 'https://api.anthropic.com',
+    advisorModel: env.ADVISOR_MODEL || 'claude-fable-5-2',
+    advisorNightLimit: Number(env.ADVISOR_NIGHT_LIMIT) > 0 ? Math.floor(Number(env.ADVISOR_NIGHT_LIMIT)) : 300,
     allowedOrigins: (env.ALLOWED_ORIGINS || '').split(',').map((origin) => origin.trim()).filter(Boolean),
   };
 }
