@@ -144,6 +144,20 @@ body.has-order-bar .app{padding-bottom:104px}
 .qr-caption{display:flex;justify-content:space-between;align-items:baseline;margin:14px 0 16px;font-size:17px}
 .qr-caption span{font-size:22px;font-weight:900}
 
+.track-steps{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:4px}
+.track-steps li{display:grid;grid-template-columns:34px 1fr;align-items:center;gap:12px;padding:10px 0;color:var(--sage);transition:color .3s}
+.track-steps i{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;border:2px solid var(--bottle-line);font-style:normal;font-weight:800;font-size:15px;transition:background .3s,border-color .3s,color .3s}
+.track-steps b{display:block;font-size:17px;font-weight:750}
+.track-steps span{font-size:14px}
+.track-steps li.is-done,.track-steps li.is-now{color:var(--foam)}
+.track-steps li.is-done i{background:var(--amber);border-color:var(--amber);color:var(--bottle)}
+.track-steps li.is-now i{border-color:var(--amber);color:var(--amber);animation:now 1.2s ease-in-out infinite}
+@keyframes now{50%{box-shadow:0 0 0 7px rgba(244,174,37,.18)}}
+.track-bar{height:8px;margin:14px 0 4px;border-radius:999px;background:var(--bottle);overflow:hidden}
+.track-bar div{height:100%;width:100%;border-radius:999px;background:linear-gradient(90deg,var(--amber-deep),var(--amber));transform-origin:left;transform:scaleX(var(--progress, .12));transition:transform .9s ease-out}
+.cheers{margin:16px 0 4px;font-family:var(--display);font-stretch:125%;font-weight:900;font-size:30px;line-height:1.05;color:var(--amber);animation:cheers .6s cubic-bezier(.34,1.56,.64,1)}
+@keyframes cheers{from{transform:scale(.6) rotate(-4deg);opacity:0}}
+.track-foot{display:grid;gap:12px;margin-top:14px}
 .toast{position:fixed;left:50%;bottom:84px;transform:translate(-50%,10px);z-index:60;background:var(--foam);color:var(--bottle);font-weight:700;font-size:14.5px;padding:10px 16px;border-radius:999px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:calc(100% - 32px);text-align:center}
 .toast.is-visible{opacity:1;transform:translate(-50%,0)}
 
