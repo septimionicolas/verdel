@@ -116,11 +116,38 @@ export const PAIRINGS = {
   ha: { food: 'la hamburguesa', drink: 'he0' },
 };
 
-export const TABLE_SUGGESTIONS = [
-  { label: '2', keys: ['no1', 'pa2'] },
-  { label: '3', keys: ['no2', 'pe0'] },
-  { label: '4 o más', keys: ['no2', 'cp0', 'pa1'] },
+export const ROUND_QUESTIONS = [
+  { id: 'people', label: '¿Cuántos son?', choices: [{ value: '2', label: '2' }, { value: '3', label: '3' }, { value: '4', label: '4 o más' }] },
+  { id: 'hunger', label: '¿Con cuánta hambre?', choices: [{ value: 'snack', label: 'Picar algo' }, { value: 'meal', label: 'Comer bien' }] },
+  { id: 'taste', label: '¿Qué les gusta?', choices: [{ value: 'soft', label: 'Suave' }, { value: 'bitter', label: 'Amarga' }, { value: 'none', label: 'Sin alcohol' }] },
 ];
+
+export const ROUNDS = {
+  soft: {
+    phrase: 'Norte bien fría y algo rico para el centro de la mesa.',
+    snack: { 2: ['no0', 'pa2'], 3: ['cd0', 'no0'], 4: ['cd0', 'no1', 'pa2'] },
+    meal: { 2: ['cp0'], 3: ['cp0', 'no0', 'pa0'], 4: ['cp0', 'cd0', 'pa1'] },
+  },
+  bitter: {
+    phrase: 'Imperial para los que piden amargo: pedila IPA.',
+    snack: { 2: ['im0', 'pa2'], 3: ['im1', 'em1'], 4: ['im2', 'em1', 'pa2'] },
+    meal: { 2: ['im0', 'pe0'], 3: ['im1', 'pe0', 'pa0'], 4: ['im2', 'pe0', 'pn0', 'pa1'] },
+  },
+  none: {
+    phrase: 'Sin alcohol y sin quedarse con hambre.',
+    snack: { 2: ['ga1', 'pa2'], 3: ['ga1', 'ga1', 'em1'], 4: ['ga1', 'ga1', 'em1', 'pa2'] },
+    meal: { 2: ['ga1', 'pe0'], 3: ['ga1', 'ga1', 'pe0', 'pa0'], 4: ['ga1', 'ga1', 'pe0', 'pn0', 'pa1'] },
+  },
+};
+
+export function pickRound(answers = {}) {
+  const valid = ROUND_QUESTIONS.every((question) => question.choices.some((choice) => choice.value === answers[question.id]));
+  if (!valid) return null;
+  const style = ROUNDS[answers.taste];
+  const keys = style?.[answers.hunger]?.[answers.people];
+  if (!Array.isArray(keys) || keys.length === 0) return null;
+  return { phrase: style.phrase, keys: [...keys] };
+}
 
 export function buildOptionIndex(sections = SECTIONS) {
   const index = new Map();
