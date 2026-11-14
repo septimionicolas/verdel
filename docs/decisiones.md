@@ -16,6 +16,7 @@ Tomadas con Septimio el 14-11-2026. Cada una dice qué se decidió y por qué.
 | D10 | Servidor y sitio sin dependencias; el generador de QR es propio | Nada que instalar ni actualizar |
 | D11 | Los avisos a Telegram se reintentan ante cortes de red y errores 5xx; nunca ante un 4xx como «message is not modified». Un aviso puede llegar repetido, pero no se pierde por un microcorte | El 14-11-2026 se perdió un «Listo para retirar» por un corte de segundos. Un aviso repetido trae mesa y número y se reconoce; uno perdido deja el plato en la barra |
 | D12 | La carta tiene fondo animado (burbujas, luces y espuma), pero se apaga y queda liso si el celular pide menos movimiento o tiene 4 núcleos o menos o 2 GB de memoria o menos. Las animaciones nuevas (View Transitions, dibujos ligados al scroll) son un agregado: sin soporte la carta queda como antes | La carta se abre en celulares baratos con la batería a medias; el movimiento no puede trabar el scroll ni el pedido |
+| D13 | El maridaje es fijo: cada comida tiene una bebida en `PAIRINGS` de `web/menu.js`, y la carta la sugiere solo si el pedido todavía no tiene ninguna bebida (las promos cuentan como bebida) | Vive al lado de los precios, se revisa leyendo un archivo y un test avisa si una clave deja de existir en la carta |
 
 ## Valores de fábrica
 
@@ -29,6 +30,7 @@ Tomadas con Septimio el 14-11-2026. Cada una dice qué se decidió y por qué.
 | Signo `$` en la carta | Oculto en los precios, visible en los totales | `showCurrencySign` en `web/config.js` |
 | Vaso de la barra «Ver mi pedido» | Se llena con 8 productos | `FULL_GLASS_UNITS` en `web/app.js` |
 | Fondo animado de la carta | Apagado con movimiento reducido, 4 núcleos o menos, o 2 GB de memoria o menos | `modestDevice` en `web/app.js` |
+| Sugerencia de bebida (maridaje) | Se cierra sola a los 8 segundos | `PAIRING_SECONDS` en `web/app.js` |
 | Zona horaria de los reportes | `America/Argentina/Tucuman` | `VENUE` en `web/menu.js` |
 
 ## Cómo se verificó el generador de QR
