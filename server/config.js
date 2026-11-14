@@ -3,6 +3,7 @@ export function readConfig(env = process.env) {
     port: Number(env.PORT || 3005),
     dataDir: env.DATA_DIR || './data',
     botToken: env.TELEGRAM_BOT_TOKEN || '',
+    stationBotTokens: Object.fromEntries([['pizzas', env.PIZZAS_BOT_TOKEN], ['house', env.HOUSE_BOT_TOKEN]].filter(([, token]) => token)),
     telegramApiBase: env.TELEGRAM_API_BASE || 'https://api.telegram.org',
     staffPin: env.STAFF_PIN || '',
     setupKey: env.SETUP_KEY || '',
