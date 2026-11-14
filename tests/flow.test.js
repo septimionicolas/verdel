@@ -14,9 +14,21 @@ import { createTelegram } from '../server/telegram.js';
 const CHATS = { salon: -1, pizzas: -2, house: -3, owner: -4 };
 let nowMs = Date.parse('2026-11-15T01:10:00Z');
 const calls = [];
+const logs = [];
+const waits = [];
 let messageId = 100;
+let networkMs = 0;
+let downUntil = 0;
+const sleep = async (ms) => {
+  waits.push(ms);
+  networkMs += ms;
+};
+const cutNetwork = (ms) => {
+  downUntil = networkMs + ms;
+};
 
 async function fakeFetch(url, options) {
+  if (networkMs < downUntil) throw new TypeError('fetch failed', { cause: { code: 'ECONNRESET' } });
   const method = url.split('/').pop();
   const isForm = options.body instanceof FormData;
   const params = isForm ? { chat_id: Number(options.body.get('chat_id')), caption: options.body.get('caption'), fileName: options.body.get('document').name, html: await options.body.get('document').text() } : JSON.parse(options.body);
@@ -24,9 +36,9 @@ async function fakeFetch(url, options) {
   return Response.json({ ok: true, result: { message_id: ++messageId } });
 }
 
-const telegram = createTelegram({ token: 'TEST', apiBase: 'http://telegram.test', fetchImpl: fakeFetch });
+const telegram = createTelegram({ token: 'TEST', apiBase: 'http://telegram.test', fetchImpl: fakeFetch, sleep });
 const store = memoryEventStore(() => new Date(nowMs));
-const service = createService({ store, telegram, optionIndex: buildOptionIndex(), venue: VENUE, now: () => nowMs });
+const service = createService({ store, telegram, optionIndex: buildOptionIndex(), venue: VENUE, now: () => nowMs, log: (event, detail) => logs.push({ event, ...detail }) });
 const bot = createBot({ service, telegram, venue: VENUE, setupKey: 'clave' });
 const auth = createAuth({ pin: '4321', secret: 'secreto', now: () => nowMs });
 const config = { botToken: 'TEST', allowedOrigins: ['https://carta.test'], trustProxy: false };
@@ -108,6 +120,22 @@ test('la cocina avisa «Listo» solo desde su grupo y el salón se entera', asyn
 
   await tap(CHATS.pizzas, 'ready:1-1:pizzas', 'Juan');
   assert.match(lastAnswer(), /Ya estaba avisado/);
+});
+
+test('si la red se corta un momento, el «Listo» llega igual al salón y una sola vez', async (t) => {
+  t.after(() => {
+    downUntil = 0;
+  });
+  const before = calls.length;
+  cutNetwork(2500);
+  await tap(CHATS.house, 'ready:1-1:house', 'Marta');
+  assert.equal(service.state.nights[0].orders[0].ready.house.by, 'Marta');
+
+  const sent = calls.slice(before).filter((call) => call.method === 'sendMessage');
+  assert.equal(sent.filter((call) => call.params.chat_id === CHATS.salon && /Listo para retirar<\/b> · Mesa 7 · #1\n1 × Papas · Yankee/.test(call.params.text)).length, 1);
+  assert.equal(sent.filter((call) => call.params.chat_id === CHATS.owner && /Listo · Mesa 7 · #1/.test(call.params.text)).length, 1);
+  assert.deepEqual(waits, [1000, 2000]);
+  assert.deepEqual(logs.filter((entry) => /^telegram_(send|edit)_failed$/.test(entry.event)), []);
 });
 
 test('cobrar y anular se hacen solo desde el salón, y anular pide confirmación', async () => {
