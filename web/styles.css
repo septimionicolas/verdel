@@ -186,6 +186,14 @@ body.has-order-bar .app{padding-bottom:104px}
 .bar-foam{transform-origin:60px 40px}
 .order-bar.bump .bar-foam{animation:foam-pop .55s cubic-bezier(.34,1.56,.64,1)}
 @keyframes foam-pop{from{transform:scale(1.35)}to{transform:scale(1)}}
+.pairing{position:fixed;z-index:29;left:max(12px,calc(50% - 268px));right:max(12px,calc(50% - 268px));bottom:88px;display:flex;align-items:center;gap:10px;padding:10px 8px 10px 14px;border-radius:18px;background:var(--foam);color:var(--bottle);box-shadow:0 10px 30px rgba(0,0,0,.45);animation:pair-in .4s cubic-bezier(.34,1.4,.64,1)}
+@keyframes pair-in{from{transform:translateY(24px) scale(.96);opacity:0}}
+.pairing-text{flex:1;min-width:0;margin:0;line-height:1.25}
+.pairing-text b{display:block;font-size:15.5px;font-weight:800}
+.pairing-text span{font-size:13.5px;font-weight:600;opacity:.75}
+.pairing .button{flex:none;background:var(--bottle);color:var(--foam);min-height:44px;padding:10px 16px}
+.pairing-close{flex:none;width:44px;height:44px;border:0;background:none;color:var(--bottle);font-size:17px;border-radius:12px}
+body.has-pairing .toast{bottom:164px}
 .menu-page .sheet-panel{view-transition-name:menu-sheet}
 .menu-page.has-view-transitions .sheet-panel{animation:none}
 ::view-transition-new(menu-sheet):only-child{animation:sheet-in .34s cubic-bezier(.2,.8,.2,1)}

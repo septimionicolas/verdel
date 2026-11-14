@@ -101,6 +101,21 @@ export const SECTIONS = [
   },
 ];
 
+export const FOOD_SECTIONS = ['snacks', 'pizzas', 'sandwiches'];
+export const DRINK_SECTIONS = ['promos', 'beers', 'drinks', 'soft'];
+
+export const PAIRINGS = {
+  pa: { food: 'las papas', drink: 'no0' },
+  em: { food: 'las empanadas', drink: 'sn0' },
+  sf: { food: 'las sfijas', drink: 'no0' },
+  pc: { food: 'la común', drink: 'no0' },
+  pn: { food: 'la napolitana', drink: 'im0' },
+  pe: { food: 'la especial', drink: 'im0' },
+  mi: { food: 'la milanesa', drink: 'im0' },
+  lo: { food: 'el lomito', drink: 'sn0' },
+  ha: { food: 'la hamburguesa', drink: 'he0' },
+};
+
 export const TABLE_SUGGESTIONS = [
   { label: '2', keys: ['no1', 'pa2'] },
   { label: '3', keys: ['no2', 'pe0'] },
