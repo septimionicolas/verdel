@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0E2B21">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<title>Carta Verdel</title>
+</head>
+<body>
+<div class="app">
+  <header class="hero">
+    <canvas id="bubbles" aria-hidden="true"></canvas>
+    <h1 class="brand" id="brand" aria-label="Verdel" title="Tocá el vaso para servir otra">
+      <svg class="glass" viewBox="0 0 120 150" aria-hidden="true">
+        <defs>
+          <linearGradient id="beer-gradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#FAC84B"/><stop offset="1" stop-color="#D97E14"/>
+          </linearGradient>
+          <clipPath id="glass-inside"><path d="M17.2 39 L102.8 39 L67.5 141 Q67 143 65 143 L55 143 Q53 143 52.5 141 Z"/></clipPath>
+        </defs>
+        <path d="M10 34 L110 34 L72 144 Q70.6 148 66 148 L54 148 Q49.4 148 48 144 Z" fill="rgba(247,239,221,.10)"/>
+        <g clip-path="url(#glass-inside)">
+          <g class="beer">
+            <rect x="0" y="38" width="120" height="112" fill="url(#beer-gradient)"/>
+            <circle class="bubble" style="--delay:0s"   cx="57" cy="134" r="2.2" fill="#FFF3CF"/>
+            <circle class="bubble" style="--delay:.8s"  cx="63" cy="128" r="1.6" fill="#FFF3CF"/>
+            <circle class="bubble" style="--delay:1.5s" cx="60" cy="138" r="2.6" fill="#FFF3CF"/>
+            <circle class="bubble" style="--delay:2.1s" cx="55" cy="124" r="1.7" fill="#FFF3CF"/>
+            <circle class="bubble" style="--delay:2.6s" cx="65" cy="120" r="1.4" fill="#FFF3CF"/>
+          </g>
+        </g>
+        <path d="M28 52 L43 97" stroke="#fff" stroke-opacity=".38" stroke-width="4.5" stroke-linecap="round"/>
+        <path d="M10 34 L110 34 L72 144 Q70.6 148 66 148 L54 148 Q49.4 148 48 144 Z" fill="none" stroke="#F7EFDD" stroke-width="5.5" stroke-linejoin="round"/>
+        <g class="foam" fill="#F7EFDD">
+          <rect x="6" y="27" width="108" height="16" rx="8"/>
+          <circle cx="24" cy="27" r="12"/><circle cx="43" cy="20" r="15"/><circle cx="64" cy="18" r="17"/><circle cx="86" cy="22" r="14"/><circle cx="101" cy="29" r="10"/>
+        </g>
+        <path class="drip" d="M91.5 40h9v15a4.5 4.5 0 0 1-9 0z" fill="#F7EFDD"/>
+      </svg><span aria-hidden="true">ERDEL</span>
+    </h1>
+    <p class="brand-kind">Cervecería</p>
+    <p class="table-chip" id="table-chip" hidden></p>
+    <p class="hint">Tocá un precio para sumarlo a tu pedido.</p>
+  </header>
+
+  <nav class="section-nav" id="section-nav" aria-label="Secciones de la carta"></nav>
+
+  <main id="menu"></main>
+
+  <footer class="footer">
+    <p><b>Verdel</b></p>
+    <p>Precios en pesos argentinos.</p>
+    <p>Beber con moderación. Prohibida su venta a menores de 18 años.</p>
+  </footer>
+</div>
+
+<button class="order-bar" id="order-bar" type="button" hidden aria-label="Ver mi pedido">
+  <span class="order-bar-text"><b>Ver mi pedido</b><span id="order-bar-units"></span></span>
+  <span class="order-bar-total" id="order-bar-total"></span>
+</button>
+
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet-backdrop" data-close></div>
+  <div class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+    <div class="sheet-head">
+      <h2 id="sheet-title">Mi pedido</h2>
+      <button type="button" class="close-button" id="sheet-close" data-close aria-label="Cerrar mi pedido">✕</button>
+    </div>
+    <div id="order-view">
+      <ul class="order-list" id="order-list"></ul>
+      <div class="sheet-total"><span>Total</span><strong class="numeric" id="sheet-total"></strong></div>
+      <div class="sheet-actions">
+        <button type="button" class="button" id="confirm-order">Confirmar con la moza</button>
+        <button type="button" class="button button-secondary" id="clear-order">Vaciar pedido</button>
+      </div>
+    </div>
+    <div id="qr-view" hidden>
+      <p class="sheet-note">Pedile a la moza que lo escanee con su celular. Cuando lo confirme, tu pedido sale para la barra y la cocina.</p>
+      <label class="table-picker" id="table-picker">¿En qué mesa estás?<select id="table-select"></select></label>
+      <div class="qr-box" id="qr-box"></div>
+      <p class="qr-caption"><strong id="qr-table"></strong><span class="numeric" id="qr-total"></span></p>
+      <div class="sheet-actions">
+        <button type="button" class="button button-secondary" id="back-to-order">Volver al pedido</button>
+        <button type="button" class="button" id="order-done">Ya lo escaneó</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>
