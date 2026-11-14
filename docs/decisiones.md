@@ -14,12 +14,14 @@ Tomadas con Septimio el 14-11-2026. Cada una dice qué se decidió y por qué.
 | D8 | El registro es un archivo que solo crece (`events.jsonl`) | Son pocos datos; se audita leyéndolo y no hace falta una base |
 | D9 | El bot consulta a Telegram (long polling) en vez de recibir un webhook | No hace falta una dirección pública para el bot |
 | D10 | Servidor y sitio sin dependencias; el generador de QR es propio | Nada que instalar ni actualizar |
+| D11 | Los avisos a Telegram se reintentan ante cortes de red y errores 5xx; nunca ante un 4xx como «message is not modified». Un aviso puede llegar repetido, pero no se pierde por un microcorte | El 14-11-2026 se perdió un «Listo para retirar» por un corte de segundos. Un aviso repetido trae mesa y número y se reconoce; uno perdido deja el plato en la barra |
 
 ## Valores de fábrica
 
 | Regla | Valor | Dónde se cambia |
 |---|---|---|
 | Mismo código de pedido repetido | Avisa si pasaron menos de 10 minutos; la moza puede enviarlo igual | `findDuplicate` en `server/night.js` |
+| Telegram no responde | 3 reintentos, a 1, 2 y 4 s; si se agotan, 30 s sin reintentar o hasta que Telegram vuelva a contestar | `createTelegram` en `server/telegram.js` |
 | PIN mal | 5 intentos por origen, 5 minutos de bloqueo | `createAuth` en `server/auth.js` |
 | Ingreso del salón | Dura 30 días por celular | `createAuth` en `server/auth.js` |
 | Cerrar con pedidos sin cobrar | Se puede: el bot los lista y recomienda resolverlos antes | `server/bot.js` |
