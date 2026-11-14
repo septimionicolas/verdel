@@ -3,9 +3,10 @@ import { join } from 'node:path';
 import { decodeOrder, priceOrder } from '../web/order-code.js';
 import { applyEvent, clockLabel, currentNight, findDuplicate, findLatestByCode, findOrder, nightStats, replay, stationsOf, trackingState } from './night.js';
 import { kitchenKeyboard, kitchenText, orderKeyboard, orderText, ownerLine, readyAlert, summaryText } from './messages.js';
+import { NARRATIVE_INSTRUCTIONS, narrativeFacts, narrativeMessage } from './narrative.js';
 import { nightTitle, renderReport } from './report.js';
 
-export function createService({ store, telegram, stationTelegrams = {}, optionIndex, venue, reportsDir = null, now = Date.now, log = () => {} }) {
+export function createService({ store, telegram, stationTelegrams = {}, advisor = null, optionIndex, venue, reportsDir = null, now = Date.now, log = () => {} }) {
   const state = replay(store.events);
   const time = clockLabel(venue.timeZone);
   const record = (event) => applyEvent(state, store.append(event));
@@ -105,6 +106,18 @@ export function createService({ store, telegram, stationTelegrams = {}, optionIn
 
   const stats = () => nightStats(currentNight(state), venue.timeZone);
 
+  async function tellNight(closing, role) {
+    if (!advisor || !telegram) return;
+    try {
+      const paragraph = narrativeMessage(await advisor.ask(NARRATIVE_INSTRUCTIONS, narrativeFacts(closing, venue.name), { maxTokens: 2000 }));
+      if (!paragraph) return;
+      await send('salon', paragraph);
+      if (role === 'owner') await send('owner', paragraph);
+    } catch (error) {
+      log('advisor_failed', { message: error.message });
+    }
+  }
+
   async function closeNight(by) {
     const night = currentNight(state);
     if (!night.orders.length) return null;
@@ -123,6 +136,7 @@ export function createService({ store, telegram, stationTelegrams = {}, optionIn
     }
     await send('salon', summary);
     if (role === 'owner') await send('owner', summary);
+    await tellNight(closing, role);
     return { stats: closing, html, fileName };
   }
 

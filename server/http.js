@@ -19,7 +19,7 @@ async function readJson(request) {
   return JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
 }
 
-export function createHttpHandler({ service, auth, config, webDir, ready, now = Date.now }) {
+export function createHttpHandler({ service, auth, config, webDir, ready, advisor = null, now = Date.now }) {
   const root = resolve(webDir);
   const statusLimiter = createLimiter({ limit: 40, now });
 
@@ -59,7 +59,7 @@ export function createHttpHandler({ service, auth, config, webDir, ready, now = 
       if (request.method === 'OPTIONS') return send(response, 204, '', cors);
       if (request.method === 'GET' && url.pathname === '/api/health') {
         const night = currentNight(service.state);
-        return send(response, 200, { ok: true, ready, telegram: Boolean(config.botToken), bound: Object.keys(service.state.bindings), night: night.number, orders: night.orders.length }, cors);
+        return send(response, 200, { ok: true, ready, telegram: Boolean(config.botToken), advisor: Boolean(advisor), bound: Object.keys(service.state.bindings), night: night.number, orders: night.orders.length }, cors);
       }
       if (request.method === 'GET' && url.pathname === '/api/orders/status') {
         if (!statusLimiter.take(clientOrigin(request, config.trustProxy))) return send(response, 429, { error: 'RATE_LIMITED' }, { ...cors, 'cache-control': 'no-store' });
