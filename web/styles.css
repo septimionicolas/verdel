@@ -48,19 +48,28 @@ body.has-order-bar .app{padding-bottom:104px}
 .nav-chip{flex:none;border:1.5px solid var(--bottle-line);background:transparent;color:var(--foam);border-radius:999px;padding:9px 14px;min-height:42px;font-weight:650;font-size:15px;white-space:nowrap}
 .nav-chip.is-active{background:var(--amber);border-color:var(--amber);color:var(--bottle)}
 
-.table-builder{margin:20px 16px 4px;padding:18px 16px 16px;background:var(--bottle-raised);border:1px solid var(--bottle-line);border-radius:22px}
-.table-builder h2{margin:0;font-family:var(--display);font-stretch:112%;font-weight:850;font-size:22px;line-height:1.15;text-wrap:balance}
-.table-builder-note{margin:4px 0 14px;color:var(--sage);font-size:14.5px}
-.table-tabs{display:grid;grid-template-columns:1fr 1fr 1.5fr;gap:6px;padding:4px;background:var(--bottle);border-radius:14px}
-.table-tabs button{border:0;background:transparent;border-radius:10px;min-height:44px;padding:8px 6px;font-weight:750;font-size:16px;color:var(--sage)}
-.table-tabs button[aria-pressed="true"]{background:var(--foam);color:var(--bottle)}
-.suggestion ul{list-style:none;margin:16px 0 0;padding:0;display:grid;gap:9px}
-.suggestion li{display:flex;justify-content:space-between;gap:12px;font-size:15.5px}
-.suggestion li span:first-child{font-weight:600}
-.suggestion li span:last-child{color:var(--sage)}
-.suggestion-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding-top:14px;border-top:1px dashed var(--bottle-line)}
-.suggestion-footer p{margin:0;color:var(--sage);font-size:14.5px}
-.suggestion-footer strong{display:block;color:var(--foam);font-size:25px;font-weight:850;line-height:1.1}
+.round-builder{margin:20px 16px 4px;padding:18px 16px 16px;background:var(--bottle-raised);border:1px solid var(--bottle-line);border-radius:22px;scroll-margin-top:76px}
+.round-builder h2{margin:0;font-family:var(--display);font-stretch:112%;font-weight:850;font-size:24px;line-height:1.15;text-wrap:balance}
+.round-builder-note{margin:4px 0 0;color:var(--sage);font-size:14.5px}
+.round-question{margin-top:14px}
+.round-question p{margin:0 0 6px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--sage)}
+.round-chips{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px;padding:4px;background:var(--bottle);border-radius:14px}
+.round-chips button{border:0;background:transparent;border-radius:10px;min-height:44px;padding:8px 4px;font-weight:750;font-size:15px;color:var(--sage);transition:background .18s,color .18s}
+.round-chips button[aria-pressed="true"]{background:var(--foam);color:var(--bottle)}
+.round-out{margin-top:16px;padding-top:14px;border-top:1px dashed var(--bottle-line);min-height:92px}
+.round-wait{margin:0;color:var(--sage);font-size:15px}
+.round-result{animation:round-in .3s ease-out}
+@keyframes round-in{from{transform:translateY(6px);opacity:.4}}
+.round-phrase{margin:0 0 12px;font-size:16.5px;font-weight:650;line-height:1.3;text-wrap:balance}
+.round-list{list-style:none;margin:0;padding:0;display:grid;gap:9px}
+.round-list li{display:flex;justify-content:space-between;gap:12px;font-size:15.5px}
+.round-list li span:first-child{font-weight:600;min-width:0}
+.round-list li span:last-child{color:var(--sage)}
+.round-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px dashed var(--bottle-line)}
+.round-footer p{margin:0;color:var(--sage);font-size:14.5px}
+.round-footer strong{display:block;color:var(--foam);font-size:25px;font-weight:850;line-height:1.1}
+.round-saving{display:block;margin-top:2px;color:var(--amber);font-weight:700}
+.link-button{display:block;margin:8px 0 0 auto;border:0;background:none;padding:10px 0;min-height:44px;color:var(--foam);font-weight:700;font-size:14.5px;text-decoration:underline;text-underline-offset:3px}
 .button{border:0;border-radius:14px;background:var(--amber);color:var(--bottle);font-weight:800;font-size:16px;padding:12px 18px;min-height:48px}
 .button-secondary{background:transparent;border:1.5px solid var(--bottle-line);color:var(--foam)}
 .button:disabled{opacity:.5;cursor:default}

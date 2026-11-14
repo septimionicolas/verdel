@@ -1,5 +1,5 @@
 import { CONFIG } from './config.js';
-import { VENUE, SECTIONS, TABLE_SUGGESTIONS, PAIRINGS, FOOD_SECTIONS, DRINK_SECTIONS, buildOptionIndex, formatAmount } from './menu.js';
+import { VENUE, SECTIONS, ROUND_QUESTIONS, pickRound, PAIRINGS, FOOD_SECTIONS, DRINK_SECTIONS, buildOptionIndex, formatAmount } from './menu.js';
 import { encodeOrder, tableLabel } from './order-code.js';
 import { qrSvg } from './qr.js';
 import { ART } from './art.js';
@@ -38,17 +38,46 @@ function renderSection(section) {
   return `<section class="menu-section" id="section-${section.id}" data-id="${section.id}"><header class="section-head"><div><h2>${escapeHtml(section.title)}</h2><p>${escapeHtml(section.hook)}</p></div>${ART[section.art] || ''}</header><div>${section.items.map(renderRow).join('')}</div></section>`;
 }
 
-function renderTableBuilder() {
-  const tabs = TABLE_SUGGESTIONS.map((suggestion, position) => `<button type="button" data-suggestion="${position}" aria-pressed="${position === 0}">${escapeHtml(suggestion.label)}</button>`).join('');
-  return `<section class="table-builder" aria-labelledby="table-builder-title"><h2 id="table-builder-title">¿Cuántos son en la mesa?</h2><p class="table-builder-note">Elegí y te armamos una ronda para arrancar.</p><div class="table-tabs" role="group" aria-label="Cantidad de personas">${tabs}</div><div class="suggestion" id="suggestion"></div></section>`;
+const DEFAULT_ANSWERS = { people: '2', hunger: 'snack', taste: 'soft' };
+const answers = { ...DEFAULT_ANSWERS };
+
+function renderRoundBuilder() {
+  const questions = ROUND_QUESTIONS.map((question) => {
+    const chips = question.choices.map((choice) => `<button type="button" data-question="${question.id}" data-value="${escapeHtml(choice.value)}" aria-pressed="false">${escapeHtml(choice.label)}</button>`).join('');
+    return `<div class="round-question"><p id="question-${question.id}">${escapeHtml(question.label)}</p><div class="round-chips" role="group" aria-labelledby="question-${question.id}">${chips}</div></div>`;
+  }).join('');
+  return `<section class="round-builder" id="round-builder" aria-labelledby="round-builder-title"><h2 id="round-builder-title">¿Qué tomamos?</h2><p class="round-builder-note">Tres toques y te armamos la ronda.</p>${questions}<div class="round-out" id="round-out" aria-live="polite"></div></section>`;
 }
 
-function paintSuggestion(position) {
-  const entries = TABLE_SUGGESTIONS[position].keys.map((key) => optionIndex.get(key));
-  const totalCents = entries.reduce((sum, entry) => sum + entry.option.priceCents, 0);
-  const rows = entries.map((entry) => `<li><span>${escapeHtml(entry.name)}</span><span class="numeric">${price(entry.option.priceCents)}</span></li>`).join('');
-  select('#suggestion').innerHTML = `<ul>${rows}</ul><div class="suggestion-footer"><p>Total<strong class="numeric">${price(totalCents)}</strong></p><button type="button" class="button" data-add-suggestion="${position}">Sumar a mi pedido</button></div>`;
-  document.querySelectorAll('[data-suggestion]').forEach((button) => button.setAttribute('aria-pressed', String(Number(button.dataset.suggestion) === position)));
+function roundLines(keys) {
+  const counts = new Map();
+  for (const key of keys) if (optionIndex.has(key)) counts.set(key, (counts.get(key) || 0) + 1);
+  return [...counts].map(([key, quantity]) => ({ key, quantity, entry: optionIndex.get(key) }));
+}
+
+function paintRound() {
+  document.querySelectorAll('[data-question]').forEach((button) => button.setAttribute('aria-pressed', String(answers[button.dataset.question] === button.dataset.value)));
+  const out = select('#round-out');
+  const missing = ROUND_QUESTIONS.filter((question) => !answers[question.id]).length;
+  if (missing) {
+    out.innerHTML = `<p class="round-wait">${missing === ROUND_QUESTIONS.length ? 'Elegí una opción de cada fila.' : missing === 1 ? 'Te falta un toque.' : `Te faltan ${missing} toques.`}</p>`;
+    return;
+  }
+  const round = pickRound(answers);
+  const lines = round ? roundLines(round.keys) : [];
+  if (!lines.length) {
+    out.innerHTML = '<p class="round-wait">Para esta combinación no tenemos ronda armada: mirá la carta.</p>';
+    return;
+  }
+  let totalCents = 0;
+  let savingCents = 0;
+  const rows = lines.map(({ quantity, entry }) => {
+    totalCents += quantity * entry.option.priceCents;
+    if (entry.option.listCents > entry.option.priceCents) savingCents += quantity * (entry.option.listCents - entry.option.priceCents);
+    return `<li><span>${quantity > 1 ? `${quantity} × ` : ''}${escapeHtml(entry.name)}</span><span class="numeric">${price(quantity * entry.option.priceCents)}</span></li>`;
+  }).join('');
+  const saving = savingCents ? `<span class="round-saving">Ahorrás $${formatAmount(savingCents)} con las promos</span>` : '';
+  out.innerHTML = `<div class="round-result"><p class="round-phrase">${escapeHtml(round.phrase)}</p><ul class="round-list">${rows}</ul><div class="round-footer"><p>Total<strong class="numeric">$${formatAmount(totalCents)}</strong>${saving}</p><button type="button" class="button" id="add-round">Sumar a mi pedido</button></div><button type="button" class="link-button" id="reset-round">Volver a elegir</button></div>`;
 }
 
 const menu = select('#menu');
@@ -58,9 +87,9 @@ const sheet = select('#sheet');
 const orderView = select('#order-view');
 const qrView = select('#qr-view');
 
-menu.innerHTML = renderTableBuilder() + SECTIONS.map(renderSection).join('');
+menu.innerHTML = renderRoundBuilder() + SECTIONS.map(renderSection).join('');
 nav.innerHTML = SECTIONS.map((section, position) => `<button type="button" class="nav-chip${position === 0 ? ' is-active' : ''}" data-go="${section.id}">${escapeHtml(section.shortTitle || section.title)}</button>`).join('');
-paintSuggestion(0);
+paintRound();
 
 if (table !== null) {
   const chip = select('#table-chip');
@@ -286,16 +315,24 @@ document.addEventListener('click', (event) => {
     document.getElementById(`section-${go.dataset.go}`).scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
     return;
   }
-  const suggestion = event.target.closest('[data-suggestion]');
-  if (suggestion) {
-    paintSuggestion(Number(suggestion.dataset.suggestion));
+  const chip = event.target.closest('[data-question]');
+  if (chip) {
+    answers[chip.dataset.question] = chip.dataset.value;
+    paintRound();
     return;
   }
-  const addSuggestion = event.target.closest('[data-add-suggestion]');
-  if (addSuggestion) {
-    TABLE_SUGGESTIONS[Number(addSuggestion.dataset.addSuggestion)].keys.forEach((key) => changeQuantity(key, 1));
+  if (event.target.closest('#add-round')) {
+    const round = pickRound(answers);
+    if (!round) return;
+    roundLines(round.keys).forEach(({ key, quantity }) => changeQuantity(key, quantity));
     celebrateAdd();
     notify('Sumado a tu pedido');
+    return;
+  }
+  if (event.target.closest('#reset-round')) {
+    for (const question of ROUND_QUESTIONS) answers[question.id] = '';
+    paintRound();
+    select('[data-question]').focus();
     return;
   }
   const step = event.target.closest('[data-step]');
