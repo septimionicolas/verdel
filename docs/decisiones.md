@@ -15,7 +15,8 @@ Tomadas con Septimio el 14-11-2026. Cada una dice qué se decidió y por qué.
 | D9 | El bot consulta a Telegram (long polling) en vez de recibir un webhook | No hace falta una dirección pública para el bot |
 | D10 | Servidor y sitio sin dependencias; el generador de QR es propio | Nada que instalar ni actualizar |
 | D11 | Los avisos a Telegram se reintentan ante cortes de red y errores 5xx; nunca ante un 4xx como «message is not modified». Un aviso puede llegar repetido, pero no se pierde por un microcorte | El 14-11-2026 se perdió un «Listo para retirar» por un corte de segundos. Un aviso repetido trae mesa y número y se reconoce; uno perdido deja el plato en la barra |
-| D12 | La carta tiene fondo animado (burbujas, luces y espuma), pero se apaga y queda liso si el celular pide menos movimiento o tiene 4 núcleos o menos o 2 GB de memoria o menos. Las animaciones nuevas (View Transitions, dibujos ligados al scroll) son un agregado: sin soporte la carta queda como antes | La carta se abre en celulares baratos con la batería a medias; el movimiento no puede trabar el scroll ni el pedido |
+| D12 | Cada cocina que es de otro bar puede tener su propio bot (`PIZZAS_BOT_TOKEN`, `HOUSE_BOT_TOKEN`). Ese bot solo vincula su grupo y solo atiende «Listo»; el principal queda para Salón y Dueño | Las cocinas son de otros bares: no ven los otros grupos, no cobran ni cierran, y si una deja de trabajar con Verdel se revoca su bot sin tocar el resto |
+| D13 | La carta tiene fondo animado (burbujas, luces y espuma), pero se apaga y queda liso si el celular pide menos movimiento o tiene 4 núcleos o menos o 2 GB de memoria o menos. Las animaciones nuevas (View Transitions, dibujos ligados al scroll) son un agregado: sin soporte la carta queda como antes | La carta se abre en celulares baratos con la batería a medias; el movimiento no puede trabar el scroll ni el pedido |
 
 ## Valores de fábrica
 
