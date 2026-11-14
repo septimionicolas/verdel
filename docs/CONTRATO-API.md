@@ -4,7 +4,7 @@ Prefijo `/api`. JSON en UTF-8. La plata va en centavos enteros. Los errores devu
 
 ## `GET /api/health`
 
-Sin ingreso. `200 { ok, ready, telegram, bound, night, orders }`. `ready` es `false` si falta `STAFF_PIN`, `SETUP_KEY` o `SESSION_SECRET`; `bound` lista los grupos vinculados.
+Sin ingreso. `200 { ok, ready, telegram, advisor, bound, night, orders }`. `ready` es `false` si falta `STAFF_PIN`, `SETUP_KEY` o `SESSION_SECRET`; `advisor` es `true` si hay `ANTHROPIC_API_KEY` (el párrafo del cierre y, más adelante, las sugerencias en texto libre); `bound` lista los grupos vinculados.
 
 ## `POST /api/staff/sessions`
 
@@ -38,6 +38,7 @@ La usa la carta (`web/app.js`) mientras muestra el código y después, para segu
 
 - La carta y el código del pedido: se arman en el celular del cliente (`web/order-code.js`).
 - «Listo», «Cobrado en caja», «Anular» y `/cierre`: son botones y comandos del bot (`server/bot.js`).
+- El párrafo que cuenta la noche en `/cierre`: lo pide el servidor al modelo con solo números agregados y nombres de productos, y lo manda por Telegram como mensaje aparte. No se guarda en el registro.
 
 ## Registro (`data/events.jsonl`)
 
