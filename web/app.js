@@ -1,5 +1,5 @@
 import { CONFIG } from './config.js';
-import { VENUE, SECTIONS, TABLE_SUGGESTIONS, buildOptionIndex, formatAmount } from './menu.js';
+import { VENUE, SECTIONS, TABLE_SUGGESTIONS, PAIRINGS, FOOD_SECTIONS, DRINK_SECTIONS, buildOptionIndex, formatAmount } from './menu.js';
 import { encodeOrder, tableLabel } from './order-code.js';
 import { qrSvg } from './qr.js';
 import { ART } from './art.js';
@@ -11,8 +11,10 @@ const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const viewTransitions = !reducedMotion && typeof document.startViewTransition === 'function';
 const modestDevice = navigator.hardwareConcurrency <= 4 || navigator.deviceMemory <= 2;
 const FULL_GLASS_UNITS = 8;
+const PAIRING_SECONDS = 8;
 const optionIndex = buildOptionIndex();
 const STORAGE_KEY = 'verdel-order';
+const sectionOf = new Map(SECTIONS.flatMap((section) => section.items.map((item) => [item.code, section.id])));
 
 const tableParam = new URLSearchParams(location.search).get('mesa') || '';
 let table = /^\d{1,2}$/.test(tableParam) && Number(tableParam) <= VENUE.tableCount ? Number(tableParam) : null;
@@ -171,12 +173,14 @@ function paint() {
   document.body.classList.toggle('has-order-bar', units > 0);
   select('#order-bar-units').textContent = units === 1 ? '1 producto' : `${units} productos`;
   select('#order-bar-total').textContent = `$${formatAmount(cents)}`;
+  if (units === 0 || hasDrink()) hidePairing();
   if (!sheetOpen) return;
   if (units === 0) closeSheet();
   else if (view === 'order') paintOrderList();
 }
 
 function openSheet() {
+  hidePairing();
   sheetOpen = true;
   view = 'order';
   transition(() => {
@@ -192,6 +196,37 @@ function closeSheet() {
     renderSheet();
     if (!orderBar.hidden) orderBar.focus({ preventScroll: true });
   });
+}
+
+const pairing = select('#pairing');
+let pairingTimer = 0;
+let pairingKey = '';
+
+function hidePairing() {
+  clearTimeout(pairingTimer);
+  pairing.hidden = true;
+  document.body.classList.remove('has-pairing');
+}
+
+function hasDrink() {
+  return [...order.keys()].some((key) => DRINK_SECTIONS.includes(sectionOf.get(optionIndex.get(key).item.code)));
+}
+
+function suggestPairing(key) {
+  const entry = optionIndex.get(key);
+  const suggestion = entry && Object.hasOwn(PAIRINGS, entry.item.code) ? PAIRINGS[entry.item.code] : null;
+  if (!suggestion || !FOOD_SECTIONS.includes(sectionOf.get(entry.item.code)) || hasDrink()) return;
+  const drink = optionIndex.get(suggestion.drink);
+  if (!drink) return;
+  pairingKey = suggestion.drink;
+  select('#pairing-title').textContent = `Con ${suggestion.food} va una ${drink.item.name}`;
+  select('#pairing-detail').textContent = `${drink.option.label || 'De litro'} · $${formatAmount(drink.option.priceCents)}`;
+  pairing.hidden = true;
+  void pairing.offsetWidth;
+  pairing.hidden = false;
+  document.body.classList.add('has-pairing');
+  clearTimeout(pairingTimer);
+  pairingTimer = setTimeout(hidePairing, PAIRING_SECONDS * 1000);
 }
 
 let toastTimer = 0;
@@ -232,6 +267,18 @@ document.addEventListener('click', (event) => {
     changeQuantity(option.dataset.key, 1);
     replay(option, 'pulse');
     celebrateAdd();
+    suggestPairing(option.dataset.key);
+    return;
+  }
+  if (event.target.closest('#pairing-add')) {
+    hidePairing();
+    if (optionIndex.has(pairingKey)) changeQuantity(pairingKey, 1);
+    celebrateAdd();
+    notify('Sumado a tu pedido');
+    return;
+  }
+  if (event.target.closest('#pairing-close')) {
+    hidePairing();
     return;
   }
   const go = event.target.closest('[data-go]');
