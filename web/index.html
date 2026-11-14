@@ -11,7 +11,8 @@
 <link rel="stylesheet" href="styles.css">
 <title>Carta Verdel</title>
 </head>
-<body>
+<body class="menu-page">
+<div class="backdrop" id="backdrop" aria-hidden="true"><i class="glow glow-a"></i><i class="glow glow-b"></i><canvas id="ambient"></canvas></div>
 <div class="app">
   <header class="hero">
     <canvas id="bubbles" aria-hidden="true"></canvas>
@@ -46,6 +47,8 @@
     <p class="brand-kind">Cervecería</p>
     <p class="table-chip" id="table-chip" hidden></p>
     <p class="hint">Tocá un precio para sumarlo a tu pedido.</p>
+    <svg class="hero-wave hero-wave-back" viewBox="0 0 1120 26" preserveAspectRatio="none" aria-hidden="true"><path d="M0 14 Q70 0 140 14 T280 14 T420 14 T560 14 T700 14 T840 14 T980 14 T1120 14 V26 H0 Z"/></svg>
+    <svg class="hero-wave" viewBox="0 0 1120 26" preserveAspectRatio="none" aria-hidden="true"><path d="M0 14 Q70 28 140 14 T280 14 T420 14 T560 14 T700 14 T840 14 T980 14 T1120 14 V26 H0 Z"/></svg>
   </header>
 
   <nav class="section-nav" id="section-nav" aria-label="Secciones de la carta"></nav>
@@ -60,6 +63,14 @@
 </div>
 
 <button class="order-bar" id="order-bar" type="button" hidden aria-label="Ver mi pedido">
+  <span class="bar-glass" aria-hidden="true">
+    <svg viewBox="0 0 120 150">
+      <defs><clipPath id="bar-glass-inside"><path d="M17.2 39 L102.8 39 L67.5 141 Q67 143 65 143 L55 143 Q53 143 52.5 141 Z"/></clipPath></defs>
+      <g clip-path="url(#bar-glass-inside)"><rect class="bar-beer" x="0" y="38" width="120" height="112" fill="url(#beer-gradient)"/></g>
+      <path d="M10 34 L110 34 L72 144 Q70.6 148 66 148 L54 148 Q49.4 148 48 144 Z" fill="none" stroke="#F7EFDD" stroke-width="7" stroke-linejoin="round"/>
+      <g class="bar-foam" fill="#F7EFDD"><rect x="6" y="27" width="108" height="16" rx="8"/><circle cx="24" cy="27" r="12"/><circle cx="43" cy="20" r="15"/><circle cx="64" cy="18" r="17"/><circle cx="86" cy="22" r="14"/><circle cx="101" cy="29" r="10"/></g>
+    </svg>
+  </span>
   <span class="order-bar-text"><b>Ver mi pedido</b><span id="order-bar-units"></span></span>
   <span class="order-bar-total" id="order-bar-total"></span>
 </button>
