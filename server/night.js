@@ -78,6 +78,22 @@ export function findDuplicate(state, code, nowMs, windowMs = 10 * 60 * 1000) {
   return currentNight(state).orders.find((order) => order.code === code && order.status !== 'voided' && nowMs - Date.parse(order.confirmedAt) < windowMs) || null;
 }
 
+export function findLatestByCode(state, code, sinceMs = null) {
+  const orders = currentNight(state).orders;
+  for (let index = orders.length - 1; index >= 0; index -= 1) {
+    const order = orders[index];
+    if (order.code === code && (sinceMs === null || Date.parse(order.confirmedAt) >= sinceMs)) return order;
+  }
+  return null;
+}
+
+export function trackingState(order) {
+  if (order.status === 'voided') return 'voided';
+  const stations = stationsOf(order);
+  if (!stations.length) return 'received';
+  return stations.every((station) => order.ready[station]) ? 'ready' : 'cooking';
+}
+
 export function clockLabel(timeZone) {
   const formatter = new Intl.DateTimeFormat('es-AR', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
   return (instant) => formatter.format(new Date(instant));

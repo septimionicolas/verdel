@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize, resolve, sep } from 'node:path';
+import { createLimiter, clientOrigin } from './limiter.js';
 import { currentNight } from './night.js';
 
 const CONTENT_TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.json': 'application/json; charset=utf-8' };
@@ -18,8 +19,9 @@ async function readJson(request) {
   return JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
 }
 
-export function createHttpHandler({ service, auth, config, webDir, ready }) {
+export function createHttpHandler({ service, auth, config, webDir, ready, now = Date.now }) {
   const root = resolve(webDir);
+  const statusLimiter = createLimiter({ limit: 40, now });
 
   function send(response, status, body, headers = {}) {
     const payload = typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body);
@@ -59,6 +61,14 @@ export function createHttpHandler({ service, auth, config, webDir, ready }) {
         const night = currentNight(service.state);
         return send(response, 200, { ok: true, ready, telegram: Boolean(config.botToken), bound: Object.keys(service.state.bindings), night: night.number, orders: night.orders.length }, cors);
       }
+      if (request.method === 'GET' && url.pathname === '/api/orders/status') {
+        if (!statusLimiter.take(clientOrigin(request, config.trustProxy))) return send(response, 429, { error: 'RATE_LIMITED' }, { ...cors, 'cache-control': 'no-store' });
+        try {
+          return send(response, 200, service.orderStatus(url.searchParams.get('code') || '', url.searchParams.get('since') || ''), { ...cors, 'cache-control': 'no-store' });
+        } catch {
+          return send(response, 422, { error: 'ORDER_CODE_INVALID' }, cors);
+        }
+      }
       if (request.method !== 'POST') return send(response, 405, { error: 'METHOD_NOT_ALLOWED' }, cors);
       if (!ready) return send(response, 503, { error: 'NOT_CONFIGURED' }, cors);
       const body = await readJson(request);
@@ -66,8 +76,7 @@ export function createHttpHandler({ service, auth, config, webDir, ready }) {
       if (url.pathname === '/api/staff/sessions') {
         const name = String(body.name || '').trim().slice(0, 24);
         if (!name) return send(response, 422, { error: 'NAME_REQUIRED' }, cors);
-        const forwarded = config.trustProxy ? String(request.headers['x-forwarded-for'] || '').split(',')[0].trim() : '';
-        const result = auth.login(String(body.pin || ''), name, forwarded || request.socket.remoteAddress || 'unknown');
+        const result = auth.login(String(body.pin || ''), name, clientOrigin(request, config.trustProxy));
         if (result.error) return send(response, result.error === 'LOCKED' ? 429 : 401, { error: result.error }, cors);
         return send(response, 201, result, cors);
       }

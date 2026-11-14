@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { decodeOrder, priceOrder } from '../web/order-code.js';
-import { applyEvent, clockLabel, currentNight, findDuplicate, findOrder, nightStats, replay, stationsOf } from './night.js';
+import { applyEvent, clockLabel, currentNight, findDuplicate, findLatestByCode, findOrder, nightStats, replay, stationsOf, trackingState } from './night.js';
 import { kitchenKeyboard, kitchenText, orderKeyboard, orderText, ownerLine, readyAlert, summaryText } from './messages.js';
 import { nightTitle, renderReport } from './report.js';
 
@@ -94,6 +94,14 @@ export function createService({ store, telegram, optionIndex, venue, reportsDir 
     record({ type: 'chat_bound', role, chatId, title, by });
   }
 
+  function orderStatus(code, since) {
+    decodeOrder(code);
+    const sinceMs = since ? Date.parse(since) : NaN;
+    const order = findLatestByCode(state, code, Number.isNaN(sinceMs) ? null : sinceMs);
+    const at = new Date(now()).toISOString();
+    return order ? { state: trackingState(order), number: order.number, at } : { state: 'waiting', at };
+  }
+
   const stats = () => nightStats(currentNight(state), venue.timeZone);
 
   async function closeNight(by) {
@@ -122,6 +130,7 @@ export function createService({ store, telegram, optionIndex, venue, reportsDir 
     time,
     stats,
     confirmOrder,
+    orderStatus,
     markReady,
     askVoid,
     bind,
