@@ -4,7 +4,8 @@
 
 1. Hablale a @BotFather, mandá `/newbot`, elegí nombre y un usuario que termine en `bot`.
 2. Guardá el token. Va solo en el `.env` del servidor: no se comparte por chat ni se sube al repo. Si se filtra, `/revoke` en @BotFather da uno nuevo.
-3. Creá los grupos y agregá el bot a cada uno: **Salón** (mozos y encargado), **Cocina de pizzas y empanadas** (el otro bar), **Cocina de Verdel** (opcional) y **Dueño**.
+3. Si una cocina es de otro bar, creale su propio bot con `/newbot` y cargá el token en `PIZZAS_BOT_TOKEN` o `HOUSE_BOT_TOKEN`.
+4. Creá los grupos: **Salón** (mozos y encargado) y **Dueño** con el bot principal, y cada cocina (**Cocina de pizzas y empanadas**, **Cocina de Verdel**) con su bot, o con el principal si no tiene uno propio.
 
 ## 2. El servidor
 
@@ -40,7 +41,7 @@ Nuevo proyecto desde el repo, variables del `.env.example`, un volumen montado e
 
 ## 3. Vincular los grupos (una vez, desde Telegram)
 
-En cada grupo, con la clave de `SETUP_KEY`:
+En cada grupo, con la clave de `SETUP_KEY` y el bot que le corresponde:
 
 - Salón: `/vincular salon CLAVE`
 - Cocina del otro bar: `/vincular pizzas CLAVE`
