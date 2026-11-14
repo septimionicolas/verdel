@@ -1,5 +1,5 @@
 export function clientOrigin(request, trustProxy) {
-  const forwarded = trustProxy ? String(request.headers['x-forwarded-for'] || '').split(',')[0].trim() : '';
+  const forwarded = trustProxy ? String(request.headers['x-forwarded-for'] || '').split(',').map((part) => part.trim()).filter(Boolean).at(-1) : '';
   return forwarded || request.socket.remoteAddress || 'unknown';
 }
 
