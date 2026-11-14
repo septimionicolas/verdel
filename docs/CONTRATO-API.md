@@ -34,6 +34,15 @@ La usa la carta (`web/app.js`) mientras muestra el código y después, para segu
 - No devuelve líneas, totales ni nombres de personas.
 - `422 ORDER_CODE_INVALID` si el código no cumple el patrón, `429 RATE_LIMITED` al pasar 40 consultas por minuto desde el mismo origen.
 
+## `POST /api/suggestions`
+
+La usa la carta (`web/app.js`) en «O contanos con tus palabras», debajo de «¿Qué tomamos?». Sin ingreso. La carta muestra el campo solo si `/api/health` dice `advisor: true`.
+
+- Pide `{ "text": "somos 5, uno no toma, 40 lucas" }`: de 1 a 200 caracteres después de recortar espacios.
+- `200 { "phrase": "Dos Norte de 2 litros y una gaseosa para el que no toma.", "lines": [{ "key": "no1", "quantity": 2 }, { "key": "ga1", "quantity": 1 }] }`. Cada `key` existe en la carta, `quantity` es un entero de 1 a 9, hay de 1 a 8 líneas y `phrase` es texto plano de hasta 160 caracteres. No trae precios: el total lo calcula la carta con `web/menu.js`.
+- `422 TEXT_REQUIRED` (vacío o de más de 200 caracteres), `429 RATE_LIMITED` (más de 5 por minuto desde el mismo origen, o se llegó a `ADVISOR_NIGHT_LIMIT` en la noche, sumando todas las mesas), `503 ADVISOR_OFF` (no hay `ANTHROPIC_API_KEY`), `502 ADVISOR_FAILED` (el modelo no respondió algo válido o tardó más de 6 s).
+- El texto del cliente no se guarda ni en el log ni en `events.jsonl`; el log lleva solo conteos.
+
 ## Lo que no pasa por la API
 
 - La carta y el código del pedido: se arman en el celular del cliente (`web/order-code.js`).
