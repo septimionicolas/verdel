@@ -3,13 +3,14 @@ import { VENUE, SECTIONS, ROUND_QUESTIONS, pickRound, PAIRINGS, FOOD_SECTIONS, D
 import { decodeOrder, encodeOrder, priceOrder, tableLabel } from './order-code.js';
 import { qrSvg } from './qr.js';
 import { ART } from './art.js';
+import { isModestDevice } from './device.js';
 
 const select = (selector) => document.querySelector(selector);
 const escapeHtml = (text) => String(text).replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[char]);
 const price = (cents) => (CONFIG.showCurrencySign ? '$' : '') + formatAmount(cents);
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const viewTransitions = !reducedMotion && typeof document.startViewTransition === 'function';
-const modestDevice = navigator.hardwareConcurrency <= 4 || navigator.deviceMemory <= 2;
+const modestDevice = isModestDevice(navigator);
 const FULL_GLASS_UNITS = 8;
 const PAIRING_SECONDS = 8;
 const optionIndex = buildOptionIndex();
