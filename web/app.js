@@ -1,6 +1,6 @@
 import { CONFIG } from './config.js';
 import { VENUE, SECTIONS, ROUND_QUESTIONS, pickRound, PAIRINGS, FOOD_SECTIONS, DRINK_SECTIONS, buildOptionIndex, formatAmount } from './menu.js';
-import { encodeOrder, tableLabel } from './order-code.js';
+import { decodeOrder, encodeOrder, priceOrder, tableLabel } from './order-code.js';
 import { qrSvg } from './qr.js';
 import { ART } from './art.js';
 
@@ -14,6 +14,12 @@ const FULL_GLASS_UNITS = 8;
 const PAIRING_SECONDS = 8;
 const optionIndex = buildOptionIndex();
 const STORAGE_KEY = 'verdel-order';
+const WATCH_KEY = 'verdel-watch';
+const WAITING_POLL_MS = 5000;
+const TRACKING_POLL_MS = 8000;
+const RATE_LIMITED_POLL_MS = 30000;
+const WATCH_LIMIT_MS = 60 * 60 * 1000;
+const tracking = CONFIG.apiBase !== null;
 const sectionOf = new Map(SECTIONS.flatMap((section) => section.items.map((item) => [item.code, section.id])));
 
 const tableParam = new URLSearchParams(location.search).get('mesa') || '';
@@ -86,6 +92,7 @@ const orderBar = select('#order-bar');
 const sheet = select('#sheet');
 const orderView = select('#order-view');
 const qrView = select('#qr-view');
+const trackView = select('#track-view');
 
 menu.innerHTML = renderRoundBuilder() + SECTIONS.map(renderSection).join('');
 nav.innerHTML = SECTIONS.map((section, position) => `<button type="button" class="nav-chip${position === 0 ? ' is-active' : ''}" data-go="${section.id}">${escapeHtml(section.shortTitle || section.title)}</button>`).join('');
@@ -128,6 +135,7 @@ function totals() {
 }
 
 function changeQuantity(key, delta) {
+  dropWaitingWatch();
   const quantity = Math.min(99, (order.get(key) || 0) + delta);
   if (quantity <= 0) order.delete(key);
   else order.set(key, quantity);
@@ -161,6 +169,148 @@ function paintQr() {
   box.className = 'qr-box';
   box.innerHTML = qrSvg(target.href, { dark: '#0E2B21', light: '#F7EFDD', margin: 3 });
   select('#qr-table').textContent = tableLabel(table);
+  if (lines.length) startWatch(target.hash.slice(1));
+}
+
+let watch = null;
+let watchTimer = 0;
+let watchBusy = false;
+
+function saveWatch() {
+  try {
+    if (watch && watch.phase !== 'done' && watch.since) localStorage.setItem(WATCH_KEY, JSON.stringify({ code: watch.code, since: watch.since }));
+    else localStorage.removeItem(WATCH_KEY);
+  } catch {}
+}
+
+function loadWatch() {
+  if (!tracking) return;
+  try {
+    const saved = JSON.parse(localStorage.getItem(WATCH_KEY) || 'null');
+    if (saved && typeof saved.code === 'string' && typeof saved.since === 'string') watch = { code: saved.code, since: saved.since, phase: 'waiting' };
+  } catch {}
+}
+
+function startWatch(code) {
+  if (!tracking || (watch && watch.phase === 'waiting' && watch.code === code)) return;
+  watch = { code, since: null, phase: 'waiting' };
+  saveWatch();
+  pollWatch();
+}
+
+function stopWatch() {
+  clearTimeout(watchTimer);
+  watch = null;
+  saveWatch();
+}
+
+function dropWaitingWatch() {
+  if (watch && watch.phase === 'waiting') stopWatch();
+}
+
+function scheduleWatch(delay) {
+  clearTimeout(watchTimer);
+  if (watch && watch.phase !== 'done') watchTimer = setTimeout(pollWatch, delay);
+}
+
+async function pollWatch() {
+  if (!watch || watch.phase === 'done' || watchBusy || document.hidden) return;
+  const current = watch;
+  let delay = current.phase === 'waiting' ? WAITING_POLL_MS : TRACKING_POLL_MS;
+  watchBusy = true;
+  try {
+    const params = new URLSearchParams({ code: current.code });
+    if (current.since) params.set('since', current.since);
+    const response = await fetch(`${CONFIG.apiBase}/api/orders/status?${params}`, { cache: 'no-store' });
+    if (response.status === 429) delay = RATE_LIMITED_POLL_MS;
+    else if (response.ok && current === watch) {
+      const data = await response.json();
+      if (!current.since) {
+        current.since = data.at;
+        saveWatch();
+      } else {
+        applyStatus(current, data);
+      }
+    }
+  } catch {}
+  watchBusy = false;
+  if (current === watch) scheduleWatch(delay);
+  else if (watch) pollWatch();
+}
+
+function applyStatus(current, data) {
+  const expired = Date.parse(data.at) - Date.parse(current.since) > WATCH_LIMIT_MS;
+  if (!['received', 'cooking', 'ready', 'voided'].includes(data.state)) {
+    if (expired) stopWatch();
+    return;
+  }
+  const changed = current.state !== data.state;
+  current.state = data.state;
+  current.number = data.number;
+  if (current.phase === 'waiting') {
+    try {
+      const priced = priceOrder(optionIndex, decodeOrder(current.code), VENUE.tableCount);
+      Object.assign(current, { table: priced.table, totalCents: priced.totalCents, hasKitchen: priced.lines.some((line) => line.kitchen.length > 0) });
+    } catch {
+      stopWatch();
+      return;
+    }
+    current.phase = 'tracking';
+    order.clear();
+    saveOrder();
+    hidePairing();
+    sheetOpen = true;
+    view = 'track';
+    transition(renderSheet);
+    paint();
+    notify(`La moza confirmó tu pedido #${data.number}`);
+  } else if (changed) {
+    if (sheetOpen && view === 'track') paintTrack();
+    else if (data.state === 'ready') notify(`¡Tu pedido #${data.number} está listo!`);
+    else if (data.state === 'voided') notify(`La moza anuló el pedido #${data.number}`);
+    paint();
+  }
+  if (data.state === 'ready' || data.state === 'voided' || expired) {
+    current.phase = 'done';
+    clearTimeout(watchTimer);
+    saveWatch();
+    if (data.state === 'ready') {
+      try {
+        if (navigator.vibrate) navigator.vibrate([20, 60, 20]);
+      } catch {}
+    }
+  }
+}
+
+const TRACK_STEPS = {
+  kitchen: [['Recibido', 'La moza confirmó tu pedido.'], ['En cocina', 'Lo están preparando.'], ['Listo para retirar', 'Ya sale para tu mesa.']],
+  bar: [['Recibido', 'La moza confirmó tu pedido.'], ['En la barra', 'Las bebidas salen directo para tu mesa.']],
+};
+const TRACK_STATE_LABELS = { received: 'Recibido', cooking: 'En cocina', ready: 'Listo para retirar', voided: 'Anulado' };
+
+function paintTrack() {
+  if (!watch || watch.phase === 'waiting') return;
+  const steps = watch.hasKitchen ? TRACK_STEPS.kitchen : TRACK_STEPS.bar;
+  const reached = watch.state === 'ready' ? steps.length : 1;
+  const voided = watch.state === 'voided';
+  select('#track-note').textContent = `Pedido #${watch.number} · ${tableLabel(watch.table)} · $${formatAmount(watch.totalCents)}`;
+  select('#track-bar').hidden = voided;
+  select('#track-steps').hidden = voided;
+  select('#track-steps').innerHTML = steps.map(([title, detail], position) => {
+    const done = position < reached;
+    const state = done ? ' class="is-done"' : position === reached ? ' class="is-now"' : '';
+    return `<li${state}><i aria-hidden="true">${done ? '✓' : position + 1}</i><div><b>${escapeHtml(title)}</b><span>${escapeHtml(detail)}</span></div></li>`;
+  }).join('');
+  const progress = select('#track-progress');
+  const target = String(watch.state === 'ready' ? 1 : 0.5);
+  if (progress.style.getPropertyValue('--progress') !== target) {
+    progress.style.setProperty('--progress', '.12');
+    requestAnimationFrame(() => requestAnimationFrame(() => progress.style.setProperty('--progress', target)));
+  }
+  const outcome = select('#track-outcome');
+  if (watch.state === 'ready') outcome.innerHTML = `<p class="cheers">¡Salud, ${watch.table === 0 ? 'Barra' : `mesa ${watch.table}`}!</p>`;
+  else if (voided) outcome.innerHTML = '<p class="status status-warning">La moza anuló este pedido.</p>';
+  else outcome.innerHTML = '';
 }
 
 function transition(update) {
@@ -179,9 +329,11 @@ function renderSheet() {
   sheet.hidden = !sheetOpen;
   orderView.hidden = view !== 'order';
   qrView.hidden = view !== 'qr';
-  select('#sheet-title').textContent = view === 'qr' ? 'Mostrale este código' : 'Mi pedido';
+  trackView.hidden = view !== 'track';
+  select('#sheet-title').textContent = { order: 'Mi pedido', qr: 'Mostrale este código', track: 'Tu pedido en camino' }[view];
   if (!sheetOpen) return;
   if (view === 'qr') paintQr();
+  else if (view === 'track') paintTrack();
   else paintOrderList();
 }
 
@@ -197,21 +349,22 @@ function paint() {
     button.classList.toggle('in-order', quantity > 0);
     button.querySelector('.option-count').textContent = quantity > 0 ? quantity : '+';
   });
-  orderBar.hidden = units === 0;
-  orderBar.style.setProperty('--fill', String(Math.min(1, units / FULL_GLASS_UNITS)));
-  document.body.classList.toggle('has-order-bar', units > 0);
-  select('#order-bar-units').textContent = units === 1 ? '1 producto' : `${units} productos`;
-  select('#order-bar-total').textContent = `$${formatAmount(cents)}`;
+  const followed = units === 0 && watch !== null && watch.phase !== 'waiting';
+  orderBar.hidden = units === 0 && !followed;
+  orderBar.style.setProperty('--fill', String(followed ? 1 : Math.min(1, units / FULL_GLASS_UNITS)));
+  document.body.classList.toggle('has-order-bar', !orderBar.hidden);
+  select('#order-bar-units').textContent = followed ? `Pedido #${watch.number} · ${TRACK_STATE_LABELS[watch.state]}` : units === 1 ? '1 producto' : `${units} productos`;
+  select('#order-bar-total').textContent = `$${formatAmount(followed ? watch.totalCents : cents)}`;
   if (units === 0 || hasDrink()) hidePairing();
   if (!sheetOpen) return;
-  if (units === 0) closeSheet();
+  if (units === 0 && view !== 'track') closeSheet();
   else if (view === 'order') paintOrderList();
 }
 
 function openSheet() {
   hidePairing();
   sheetOpen = true;
-  view = 'order';
+  view = order.size === 0 && watch && watch.phase !== 'waiting' ? 'track' : 'order';
   transition(() => {
     renderSheet();
     select('#sheet-close').focus({ preventScroll: true });
@@ -221,6 +374,11 @@ function openSheet() {
 function closeSheet() {
   if (!sheetOpen) return;
   sheetOpen = false;
+  if (watch && watch.phase === 'done') {
+    watch = null;
+    saveWatch();
+    paint();
+  }
   transition(() => {
     renderSheet();
     if (!orderBar.hidden) orderBar.focus({ preventScroll: true });
@@ -344,8 +502,10 @@ document.addEventListener('click', (event) => {
   else if (event.target.closest('#order-bar')) openSheet();
   else if (event.target.closest('#confirm-order')) showView('qr');
   else if (event.target.closest('#back-to-order')) showView('order');
+  else if (event.target.closest('#track-done')) closeSheet();
   else if (event.target.closest('#clear-order') || event.target.closest('#order-done')) {
     const confirmed = Boolean(event.target.closest('#order-done'));
+    dropWaitingWatch();
     order.clear();
     saveOrder();
     paint();
@@ -358,7 +518,14 @@ document.addEventListener('keydown', (event) => {
 });
 
 loadOrder();
+loadWatch();
 paint();
+if (watch) pollWatch();
+if (tracking) {
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) pollWatch();
+  });
+}
 
 function activate(id) {
   nav.querySelectorAll('.nav-chip').forEach((chip) => {

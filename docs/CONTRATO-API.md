@@ -23,6 +23,17 @@ La usa `moza.html` al tocar «Confirmar y enviar a Telegram». Lleva `Authorizat
 - `409 ORDER_ALREADY_SENT` con `number`, si el mismo código se confirmó hace menos de 10 minutos. Con `"force": true` entra como otro pedido.
 - `401 SESSION_INVALID`, `422 ORDER_CODE_INVALID`, `422 PRODUCT_UNKNOWN`, `422 TABLE_UNKNOWN`, `503 NOT_CONFIGURED`.
 
+## `GET /api/orders/status?code=<código v1>&since=<ISO opcional>`
+
+La usa la carta (`web/app.js`) mientras muestra el código y después, para seguir el pedido. Sin ingreso.
+
+- Busca en la noche actual el pedido más reciente con ese código exacto y, si viene `since`, con `confirmedAt >= since`. Un `since` que no es una fecha se ignora.
+- Siempre `200`. Sin pedido: `{ "state": "waiting", "at": "2026-11-15T01:10:00.000Z" }`. Con pedido: `{ "state": "received", "number": 23, "at": "…" }`.
+- `state`: `received` (confirmado y sin cocina, solo bebidas), `cooking` (tiene cocina y falta alguna), `ready` (todas las cocinas avisaron «Listo») o `voided` (anulado). Cobrar no cambia el estado.
+- `at` es la hora del servidor en UTC. La carta toma la primera como `since`, así un pedido igual confirmado antes no se confunde con el nuevo.
+- No devuelve líneas, totales ni nombres de personas.
+- `422 ORDER_CODE_INVALID` si el código no cumple el patrón, `429 RATE_LIMITED` al pasar 40 consultas por minuto desde el mismo origen.
+
 ## Lo que no pasa por la API
 
 - La carta y el código del pedido: se arman en el celular del cliente (`web/order-code.js`).

@@ -19,6 +19,7 @@ Tomadas con Septimio el 14-11-2026. Cada una dice qué se decidió y por qué.
 | D13 | La carta tiene fondo animado (burbujas, luces y espuma), pero se apaga y queda liso si el celular pide menos movimiento o tiene 4 núcleos o menos o 2 GB de memoria o menos. Las animaciones nuevas (View Transitions, dibujos ligados al scroll) son un agregado: sin soporte la carta queda como antes | La carta se abre en celulares baratos con la batería a medias; el movimiento no puede trabar el scroll ni el pedido |
 | D14 | El maridaje es fijo: cada comida tiene una bebida en `PAIRINGS` de `web/menu.js`, y la carta la sugiere solo si el pedido todavía no tiene ninguna bebida (las promos cuentan como bebida) | Vive al lado de los precios, se revisa leyendo un archivo y un test avisa si una clave deja de existir en la carta |
 | D15 | «¿Qué tomamos?» reemplaza a «¿Cuántos son en la mesa?»: tres preguntas (cuántos, cuánta hambre, qué les gusta) y una ronda fija por cada una de las 18 combinaciones, en `ROUNDS` de `web/menu.js`. La elige `pickRound`, una función pura que se puede reusar como respaldo | Responde al instante y sin red, con precios de la carta; un test revisa que las 18 combinaciones tengan ronda y que cada clave exista |
+| D16 | El celular del cliente sigue su pedido preguntando al servidor por el código (`GET /api/orders/status`), sin ingreso. La respuesta es solo el estado y el número: ni líneas, ni total, ni nombres. Toma como punto de partida la hora del servidor al mostrar el código, así un pedido igual de antes no se confunde con el nuevo. El código del pedido, `qr.js` y la pantalla de la moza no cambian | El código ya está en el celular del cliente y cualquiera que lo vea podría consultarlo: por eso no se devuelve nada que no se sepa mirando la mesa. Preguntar cada pocos segundos alcanza para un bar y no pide abrir nada nuevo en el servidor |
 
 ## Valores de fábrica
 
@@ -27,6 +28,8 @@ Tomadas con Septimio el 14-11-2026. Cada una dice qué se decidió y por qué.
 | Mismo código de pedido repetido | Avisa si pasaron menos de 10 minutos; la moza puede enviarlo igual | `findDuplicate` en `server/night.js` |
 | Telegram no responde | 3 reintentos, a 1, 2 y 4 s; si se agotan, 30 s sin reintentar o hasta que Telegram vuelva a contestar | `createTelegram` en `server/telegram.js` |
 | PIN mal | 5 intentos por origen, 5 minutos de bloqueo | `createAuth` en `server/auth.js` |
+| Consultas sin ingreso (estado del pedido) | 40 por minuto por origen | `createHttpHandler` en `server/http.js` |
+| Seguimiento en la carta | Pregunta cada 5 s hasta que la moza confirma y cada 8 s después; 30 s si el servidor frena; se rinde a la hora | Constantes al principio de `web/app.js` |
 | Ingreso del salón | Dura 30 días por celular | `createAuth` en `server/auth.js` |
 | Cerrar con pedidos sin cobrar | Se puede: el bot los lista y recomienda resolverlos antes | `server/bot.js` |
 | Signo `$` en la carta | Oculto en los precios, visible en los totales | `showCurrencySign` en `web/config.js` |
