@@ -196,7 +196,7 @@ STAFF_PIN, SETUP_KEY y SESSION_SECRET no cambian de nombre. La regla de claves d
 - **Valores de fábrica:** "el ingreso dura 30 días" pasa a "dura un turno, 12 h por defecto". "Estado 40 por minuto" pasa a 20 por nonce, 600 por origen y 3000 en total.
 
 ## 6. Pruebas de comportamiento
-1. Con PIN correcto, la respuesta es 202 y no se crea ninguna sesión hasta que la moza confirma en Telegram. El claim antes de eso da `pending`.
+1. Con PIN correcto, la respuesta es 202 y no se crea ninguna sesión hasta que el navegador retira el token con el claim, después de que la moza confirma en Telegram o la aprueban en el grupo. El claim antes de eso da `pending`. Un aprobado que nadie retira vence sin abrir sesión y deja `staff_login_unclaimed` en el log.
 2. `/start in_<id>` de alguien que está en salon, seguido de "Sí, soy yo", hace que el claim entregue el token una sola vez. El segundo claim da 410.
 3. `/start` de alguien que no está en ningún grupo no crea sesión y la respuesta lo dice.
 4. "No fui yo" rechaza el pedido y le avisa al owner.

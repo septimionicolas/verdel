@@ -66,17 +66,18 @@ grep -E '"type":"(staff_[a-z_]*|login_unlocked)"' events.jsonl | tail -n 50
 - `chat_bound` dice qué grupo se vinculó a cada función y cuándo: una vinculación que no hiciste marca el momento en que usaron la `SETUP_KEY`.
 - `order_confirmed` trae el nombre que puso la moza (`staff`), la mesa, el código y el `sessionId` del ingreso que lo confirmó.
 - `staff_session_started` dice cómo entró cada ingreso (`method`: `telegram`, `group` o `setup_key`), con qué cuenta de Telegram (`telegramUserId`, `telegramName`) o quién lo aprobó (`approvedBy`). Buscá su `sessionId` en los `order_confirmed` para ver qué confirmó. Un ingreso por `setup_key` que no hizo el encargado, o pedidos a la hora en que el bar estaba cerrado, son del intruso.
-- `staff_session_ended` lleva el motivo: `revoked` ([Cerrar] en `/mozas`), `logout`, `replaced` o `unclaimed` (aprobado y nunca retirado por el navegador: puede ser un pedido abandonado o alguien que aprobó el de otro). `staff_sessions_ended_all` es [Cerrar todas], con quién lo tocó (`by`); `night_closed` también cierra todos los ingresos abiertos antes que él.
+- `staff_session_ended` lleva el motivo: `revoked` ([Cerrar] en `/mozas`), `logout`, `replaced`, o `unclaimed` en registros anteriores al 2026-11-20 (aprobado y nunca retirado por el navegador). Hoy ese caso no abre sesión y queda como `staff_login_unclaimed` en el log del servidor. `staff_sessions_ended_all` es [Cerrar todas], con quién lo tocó (`by`); `night_closed` también cierra todos los ingresos abiertos antes que él.
 - `staff_login_denied` (`not_me` o `group`) y `staff_login_emergency` son intentos con el PIN que vale; `login_unlocked` dice quién levantó un bloqueo.
 - `by` en cobros y anulaciones dice quién tocó el botón en Telegram.
 
 El registro del servidor dice quién entró, lo que intentaron y no les salió:
 
 ```bash
-journalctl -u verdel --since "2026-11-20 00:00" | grep -E '"event":"(staff_login|staff_login_failed|security_alert|telegram_[a-z_]*)"'
+journalctl -u verdel --since "2026-11-20 00:00" | grep -E '"event":"(staff_login|staff_login_failed|staff_login_unclaimed|security_alert|telegram_[a-z_]*)"'
 ```
 
 - `staff_login` es cada ingreso bueno, anotado cuando el navegador retira el token o entra por emergencia: el nombre que puso la moza (`name`) y la dirección (`origin`). Un nombre que no es de nadie, o un ingreso a la hora en que el bar estaba cerrado, es del intruso: desde ese `at` todo lo que firmó ese nombre es sospechoso.
+- `staff_login_unclaimed` es un ingreso aprobado (`method`: `telegram` o `group`) que el navegador nunca retiró antes de que venciera el pedido. Puede ser un pedido abandonado o alguien que aprobó el de otro; si se repite con el mismo `name`, preguntale a quien aprobó.
 - `staff_login_failed` es cada intento fallido, con `kind`: `pin` si el PIN no era, `key` si la clave de instalación del ingreso de emergencia no era (sin `name`: ese paso no lo pide), `locked` si llegó con los ingresos frenados. Se anotan hasta 60 por minuto, para que una ráfaga no llene el disco; los ingresos buenos se anotan siempre. Ninguna línea lleva el PIN ni el token.
 - `security_alert` lleva los ingresos fallidos, desde cuántas direcciones y si se frenaron los ingresos nuevos. Guardá una copia de `events.jsonl` y de esa salida antes de tocar nada más, con la fecha en el nombre, fuera del servidor.
 

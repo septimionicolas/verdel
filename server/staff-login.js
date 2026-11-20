@@ -48,7 +48,7 @@ export function createStaffLogin({ service, auth, telegram = null, timeZone, now
       if (entry.expiresAtMs > at) continue;
       pending.delete(id);
       if (entry.state === 'pending' && entry.groupMessage) edit(entry.groupMessage, 'Venció sin respuesta.');
-      if (entry.state === 'approved') service.endStaffSession(entry.session.sessionId, 'unclaimed', entry.session.name);
+      if (entry.state === 'approved') log('staff_login_unclaimed', { name: entry.name, method: entry.approval.method });
     }
   }
 
@@ -62,9 +62,12 @@ export function createStaffLogin({ service, auth, telegram = null, timeZone, now
   function issue(entry, details) {
     const token = newToken();
     entry.session = service.startStaffSession({ tokenHash: auth.hashToken(token), name: entry.name, hours: sessionHours, ...details });
-    entry.token = token;
-    entry.state = 'approved';
     return { token, name: entry.name, expiresAt: entry.session.expiresAt };
+  }
+
+  function markApproved(entry, details) {
+    entry.approval = details;
+    entry.state = 'approved';
   }
 
   function request({ name, pin, origin, userAgent }) {
@@ -107,7 +110,7 @@ export function createStaffLogin({ service, auth, telegram = null, timeZone, now
     if (entry.state === 'denied') return { error: 'REQUEST_DENIED' };
     if (entry.state === 'pending') return { state: 'pending' };
     pending.delete(entry.id);
-    return { token: entry.token, name: entry.name, expiresAt: entry.session.expiresAt };
+    return issue(entry, entry.approval);
   }
 
   async function ask(credentials) {
@@ -186,7 +189,7 @@ export function createStaffLogin({ service, auth, telegram = null, timeZone, now
       await service.send('owner', `Alguien con el PIN intentó ingresar como «${escapeHtml(entry.name)}» y ${escapeHtml(user.name)} dijo que no fue ella. Si se repite, cambiá STAFF_PIN.`);
       return { answer: 'Listo, no entró nadie.', edit: 'Listo, no entró nadie. Le avisamos al dueño.' };
     }
-    issue(entry, { method: 'telegram', telegramUserId: user.id, telegramName: user.name });
+    markApproved(entry, { method: 'telegram', telegramUserId: user.id, telegramName: user.name });
     if (entry.groupMessage) edit(entry.groupMessage, `${escapeHtml(entry.name)} entró. Confirmó en Telegram a las ${time(now())}.`);
     return { answer: 'Listo.', edit: `Listo, ${escapeHtml(entry.name)}. Volvé al navegador. Tu ingreso dura hasta el cierre de la noche (máximo ${sessionHours} h).` };
   }
@@ -195,7 +198,7 @@ export function createStaffLogin({ service, auth, telegram = null, timeZone, now
     const entry = waiting(requestId);
     if (!entry || !entry.asked) return { answer: 'Este ingreso ya no está vigente.' };
     if (approve) {
-      issue(entry, { method: 'group', approvedBy: by });
+      markApproved(entry, { method: 'group', approvedBy: by });
       edit(entry.groupMessage, `${escapeHtml(entry.name)} entró. Aprobó ${escapeHtml(by)} a las ${time(now())}.`);
       return { answer: `Listo, ${entry.name} ya puede confirmar pedidos.` };
     }
