@@ -56,7 +56,7 @@ El bot borra el mensaje con la clave si es administrador del grupo. `/estado` mu
 
 ## 4. Los QR de las mesas
 
-Abrí `mesas.html` en la dirección definitiva de la carta y tocá «Imprimir». Para generarlos desde otra dirección: `mesas.html?base=https://verdel.panelpro.tech/`. Imprimilos recién cuando la dirección sea la definitiva: el QR impreso apunta ahí.
+Abrí `mesas.html` en la dirección definitiva de la carta y tocá «Imprimir». Para generarlos desde otra dirección: `mesas.html?base=https://verdel.panelpro.tech/`. `?base=` solo acepta el origen de la propia página o uno de `allowedQrOrigins` en `config.js` (el servidor pone ahí `ALLOWED_ORIGINS`); cualquier otro se ignora y la página lo avisa. Imprimilos recién cuando la dirección sea la definitiva: el QR impreso apunta ahí.
 
 ## 5. Probar antes de abrir
 

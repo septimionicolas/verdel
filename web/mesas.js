@@ -1,15 +1,15 @@
+import { CONFIG } from './config.js';
 import { VENUE } from './menu.js';
 import { tableLabel } from './order-code.js';
 import { qrSvg } from './qr.js';
+import { resolveQrBase } from './qr-base.js';
 
-const requestedBase = new URLSearchParams(location.search).get('base');
-const base = new URL(requestedBase || './', location.href);
-base.search = '';
-base.hash = '';
+const resolved = resolveQrBase(new URLSearchParams(location.search).get('base'), location.href, CONFIG.allowedQrOrigins || []);
+const base = new URL(resolved.href);
 const glass = document.querySelector('#glass').innerHTML;
 const tables = [...Array.from({ length: VENUE.tableCount }, (_, position) => position + 1), 0];
 
-document.querySelector('#base-note').textContent = `Cada código abre ${base.href} con su número de mesa. Imprimilos recién cuando la carta esté en su dirección definitiva.`;
+document.querySelector('#base-note').textContent = `${resolved.accepted ? '' : 'La dirección pedida en ?base= no es de esta carta ni de la lista de config.js, así que no se usó. '}Cada código abre ${base.href} con su número de mesa. Imprimilos recién cuando la carta esté en su dirección definitiva.`;
 document.querySelector('#cards').innerHTML = tables.map((table) => {
   const target = new URL(base);
   target.searchParams.set('mesa', String(table));

@@ -8,7 +8,7 @@ Sin ingreso. `200 { ok, ready }` y nada más: ni grupos vinculados, ni pedidos, 
 
 ## `GET /config.js`
 
-No es parte de `/api`, pero la sirve el servidor en lugar de `web/config.js`: `apiBase: ''`, `showCurrencySign` y `suggestions` (`true` si hay `ANTHROPIC_API_KEY`).
+No es parte de `/api`, pero la sirve el servidor en lugar de `web/config.js`: `apiBase: ''`, `showCurrencySign`, `suggestions` (`true` si hay `ANTHROPIC_API_KEY`) y `allowedQrOrigins` (los orígenes de `ALLOWED_ORIGINS`, que `mesas.html?base=` acepta además del propio).
 
 ## `POST /api/staff/sessions`
 

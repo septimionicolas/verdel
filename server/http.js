@@ -30,7 +30,7 @@ async function readJson(request) {
 
 export function createHttpHandler({ service, auth, config, webDir, ready, suggester = null, now = Date.now }) {
   const root = resolve(webDir);
-  const servedConfig = `export const CONFIG = {\n  apiBase: '',\n  showCurrencySign: false,\n  suggestions: ${Boolean(suggester)},\n};\n`;
+  const servedConfig = `export const CONFIG = {\n  apiBase: '',\n  showCurrencySign: false,\n  suggestions: ${Boolean(suggester)},\n  allowedQrOrigins: ${JSON.stringify(config.allowedOrigins)},\n};\n`;
   const statusLimiter = createLimiter({ limit: 40, now });
   const suggestionLimiter = createLimiter({ limit: 5, now });
 
