@@ -3,6 +3,7 @@ import { createServer } from 'node:http';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { createLimiter, clientOrigin } from './limiter.js';
 import { cleanSuggestionText } from './suggestions.js';
+import { VENUE } from '../web/menu.js';
 
 const CONTENT_TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.json': 'application/json; charset=utf-8' };
 const MAX_BODY_BYTES = 4096;
@@ -35,7 +36,8 @@ export const HTTP_LIMITS = {
   staticPerOrigin: 2000,
   statusPerOrigin: 1200,
   statusPerCode: 30,
-  suggestionsPerOrigin: 5,
+  suggestionsPerOrigin: 60,
+  suggestionsPerTable: 3,
   ordersPerSession: 30,
   forcePerCode: 3,
   forceWindowMs: 10 * 60 * 1000,
@@ -59,6 +61,7 @@ export function createHttpHandler({ service, auth, config, webDir, ready, sugges
   const statusLimiter = limiter(caps.statusPerOrigin);
   const statusCodeLimiter = limiter(caps.statusPerCode);
   const suggestionLimiter = limiter(caps.suggestionsPerOrigin);
+  const suggestionTableLimiter = limiter(caps.suggestionsPerTable);
   const orderLimiter = limiter(caps.ordersPerSession);
   const forceLimiter = limiter(caps.forcePerCode, caps.forceWindowMs);
   const failedLoginLog = limiter(caps.failedLoginLogsPerMinute);
@@ -122,9 +125,13 @@ export function createHttpHandler({ service, auth, config, webDir, ready, sugges
       if (url.pathname === '/api/suggestions') {
         if (!suggester) return send(response, 503, { error: 'ADVISOR_OFF' }, cors);
         if (!suggestionLimiter.take(origin)) return limited(response, cors);
-        const text = cleanSuggestionText((await readJson(request))?.text);
+        const body = await readJson(request);
+        const text = cleanSuggestionText(body?.text);
         if (!text) return send(response, 422, { error: 'TEXT_REQUIRED' }, cors);
-        const result = await suggester.suggest(text);
+        const table = body.table ?? null;
+        if (table !== null && !(Number.isInteger(table) && table >= 0 && table <= VENUE.tableCount)) return send(response, 422, { error: 'TABLE_UNKNOWN' }, cors);
+        if (!suggestionTableLimiter.take(`${origin} ${table ?? '-'}`)) return limited(response, cors);
+        const result = await suggester.suggest(text, table);
         if (result.error) return send(response, result.error === 'RATE_LIMITED' ? 429 : 502, { error: result.error }, cors);
         return send(response, 200, result, { ...cors, 'cache-control': 'no-store' });
       }
