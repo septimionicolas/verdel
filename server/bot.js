@@ -25,12 +25,16 @@ export function createBot({ service, telegram, venue, setupKey, staff = null, no
   const time = clockLabel(venue.timeZone);
   const edit = (message, text, markup = { inline_keyboard: [] }) => telegram.call('editMessageText', { chat_id: message.chat.id, message_id: message.message_id, text, parse_mode: 'HTML', reply_markup: markup }).catch(() => {});
 
+  function staleNight(id) {
+    return Number(id) !== currentNight(service.state).number;
+  }
+
   function staffList() {
     const sessions = service.openStaffSessions();
     if (!sessions.length) return { text: 'No hay mozas ingresadas.', reply_markup: { inline_keyboard: [] } };
     const lines = sessions.map((session) => `${escapeHtml(session.name)} · desde ${time(session.startedAt)} · ${METHOD_LABELS[session.method] || session.method}`);
     const buttons = sessions.map((session) => [{ text: `Cerrar ${session.name}`.slice(0, 40), callback_data: `staffend:${session.sessionId}` }]);
-    return { text: ['<b>Mozas ingresadas</b>', ...lines].join('\n'), reply_markup: { inline_keyboard: [...buttons, [{ text: 'Cerrar todas', callback_data: 'staffendall' }]] } };
+    return { text: ['<b>Mozas ingresadas</b>', ...lines].join('\n'), reply_markup: { inline_keyboard: [...buttons, [{ text: 'Cerrar todas', callback_data: `staffendall:${currentNight(service.state).number}` }]] } };
   }
 
   async function staffStart(message, requestId) {
@@ -114,11 +118,13 @@ export function createBot({ service, telegram, venue, setupKey, staff = null, no
       const list = staffList();
       return edit(query.message, list.text, list.reply_markup);
     }),
-    staffendall: guarded(async ({ query, answer }) => {
+    staffendall: guarded(async ({ query, id, answer }) => {
+      if (staleNight(id)) return answer('Botón viejo: ya no hace nada.');
       await answer('¿Seguro? Confirmá abajo.');
-      return edit(query.message, '¿Cerrar el ingreso de todas las mozas? Van a tener que ingresar de nuevo.', { inline_keyboard: [[{ text: 'Sí, cerrar todas', callback_data: 'staffendallyes' }, { text: 'No', callback_data: 'staffendallno' }]] });
+      return edit(query.message, '¿Cerrar el ingreso de todas las mozas? Van a tener que ingresar de nuevo.', { inline_keyboard: [[{ text: 'Sí, cerrar todas', callback_data: `staffendallyes:${id}` }, { text: 'No', callback_data: `staffendallno:${id}` }]] });
     }),
-    staffendallyes: guarded(async ({ query, by, answer }) => {
+    staffendallyes: guarded(async ({ query, id, by, answer }) => {
+      if (staleNight(id)) return answer('Botón viejo: ya no hace nada.');
       const count = service.endAllStaffSessions(by);
       await answer('Listo.');
       return edit(query.message, `Se cerraron ${count} ${count === 1 ? 'ingreso' : 'ingresos'}. Cerró ${escapeHtml(by)} a las ${time(now())}.`);

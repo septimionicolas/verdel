@@ -19,7 +19,7 @@ Las tres del salón (`STAFF_PIN`, `SETUP_KEY`, `SESSION_SECRET`) tienen que ser 
 
 ## Ver y cortar los ingresos del salón
 
-- **`/mozas`** en Salón o Dueño lista quién está adentro: «Nombre · desde HH:MM · Telegram|grupo|emergencia». [Cerrar] corta un ingreso; [Cerrar todas] pide confirmación y corta todos. La moza ve «Tu turno terminó o te cerraron el ingreso» y vuelve a ingresar.
+- **`/mozas`** en Salón o Dueño lista quién está adentro: «Nombre · desde HH:MM · Telegram|grupo|emergencia». [Cerrar] corta un ingreso; [Cerrar todas] pide confirmación y corta todos. Esos dos botones valen solo en la noche en que se mandó `/mozas`: después de `/cierre`, mandá `/mozas` de nuevo. La moza ve «Tu turno terminó o te cerraron el ingreso» y vuelve a ingresar.
 - **`/cierre`** corta todos los ingresos de la noche.
 - **`/desbloquear`** en Dueño levanta el bloqueo por PIN mal de todos los orígenes y el freno general, y vacía los pedidos de ingreso pendientes, por ejemplo cuando una moza se equivocó cinco veces desde el wifi del bar o cuando te llega el aviso de que hay 30 pedidos pendientes y no entra ninguno más. Si ese aviso se repite, cambiá `STAFF_PIN`: alguien de afuera lo sabe. Queda `login_unlocked` en el registro con quién lo hizo.
 - Si llega «dijo que no fue ella», «rechazó en el grupo» o «Hay muchos pedidos de ingreso con el PIN correcto», alguien tiene el PIN: cambiá `STAFF_PIN` y pasalo en persona.

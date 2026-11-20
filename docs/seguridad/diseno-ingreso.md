@@ -95,7 +95,8 @@ Repo: /Users/nickynight/dev/verdel, rama seguridad/cierre-2026-11-20, HEAD e3303
   - Si la misma persona de Telegram (mismo `telegramUserId`) abre una sesión nueva, la anterior se cierra sola con `reason: "replaced"`.
   - La moza puede cerrar su propia sesión con `POST /api/staff/sessions/end` (Bearer), y se registra `reason: "logout"`.
 - **Cerrar todas:** desde `/mozas`, el botón [Cerrar todas] pide confirmación [Sí, cerrar todas] [No], con el mismo patrón que close y closeno.
-  - Los callbacks son `staffendall`, `staffendallyes` y `staffendallno`.
+  - Los callbacks son `staffendall:<noche>`, `staffendallyes:<noche>` y `staffendallno:<noche>`, como `close:<noche>`.
+  - Si la noche ya se cerró, [Cerrar todas] y [Sí, cerrar todas] contestan «Botón viejo: ya no hace nada.» y no cortan los ingresos de la noche nueva.
   - Se registra `staff_sessions_ended_all {by}`.
   - Para una emergencia total también sirve rotar SESSION_SECRET: todos los `tokenHash` dejan de coincidir.
 - **/cierre:** el evento `night_closed` cierra en la reconstrucción del estado todas las sesiones abiertas antes de él. No se agrega ningún evento extra.
@@ -176,7 +177,7 @@ Cambio en uno existente: `order_confirmed` suma `nonce` y `sessionId`.
 - Callbacks:
   - `staffme` y `staffnotme`, para la propia moza;
   - `staffok` y `staffno`, para el grupo;
-  - `staffend`, `staffendall`, `staffendallyes` y `staffendallno`, para cerrar sesiones.
+  - `staffend`, `staffendall:<noche>`, `staffendallyes:<noche>` y `staffendallno:<noche>`, para cerrar sesiones.
 - Los nombres de callback siguen el formato `acción:id:estación`.
 - `helpText` suma `/mozas` y `/desbloquear`.
 
