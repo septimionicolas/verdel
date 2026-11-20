@@ -4,7 +4,7 @@ import { createAuth } from '../server/auth.js';
 
 const keys = { pin: 'birra-fria-26', secret: 'firma-de-prueba-0123456789abcdef-larga' };
 const lock = (auth, origin) => {
-  for (let attempt = 0; attempt < 2; attempt++) auth.login('0000', 'Caro', origin);
+  for (let attempt = 0; attempt < 2; attempt++) auth.checkPin('0000', origin);
 };
 
 test('al llenarse, los intentos vencidos se barren antes de soltar un bloqueo vigente', () => {
@@ -14,8 +14,8 @@ test('al llenarse, los intentos vencidos se barren antes de soltar un bloqueo vi
   now = 2000;
   lock(auth, 'vigente');
   lock(auth, 'nueva');
-  assert.equal(auth.login('0000', 'Caro', 'vigente').error, 'LOCKED');
-  assert.equal(auth.login('0000', 'Caro', 'nueva').error, 'LOCKED');
+  assert.equal(auth.checkPin('0000', 'vigente').error, 'LOCKED');
+  assert.equal(auth.checkPin('0000', 'nueva').error, 'LOCKED');
 });
 
 test('si todos siguen vigentes, se suelta el origen que falló hace más tiempo y no el último', () => {
@@ -26,15 +26,15 @@ test('si todos siguen vigentes, se suelta el origen que falló hace más tiempo 
   lock(auth, 'segunda');
   now = 20;
   lock(auth, 'tercera');
-  assert.equal(auth.login('0000', 'Caro', 'segunda').error, 'LOCKED');
-  assert.equal(auth.login('0000', 'Caro', 'tercera').error, 'LOCKED');
-  assert.equal(auth.login('0000', 'Caro', 'primera').error, 'PIN_INVALID');
+  assert.equal(auth.checkPin('0000', 'segunda').error, 'LOCKED');
+  assert.equal(auth.checkPin('0000', 'tercera').error, 'LOCKED');
+  assert.equal(auth.checkPin('0000', 'primera').error, 'PIN_INVALID');
 });
 
 test('una inundación de orígenes frena los ingresos un rato y después la moza entra con el PIN', () => {
   let now = 0;
   const auth = createAuth({ ...keys, now: () => now });
-  for (let index = 0; index < 30000; index++) auth.login('0000', 'Caro', `10.${index >> 16}.${(index >> 8) & 255}.${index & 255}`);
+  for (let index = 0; index < 30000; index++) auth.checkPin('0000', `10.${index >> 16}.${(index >> 8) & 255}.${index & 255}`);
   now += 15 * 60 * 1000;
-  assert.ok(auth.login('birra-fria-26', 'Caro', 'celular-de-caro').token);
+  assert.ok(auth.checkPin('birra-fria-26', 'celular-de-caro').ok);
 });

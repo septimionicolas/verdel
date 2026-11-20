@@ -3,7 +3,6 @@ import { createServer } from 'node:http';
 import { after, before, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { VENUE, buildOptionIndex } from '../web/menu.js';
-import { createAuth } from '../server/auth.js';
 import { createHttpHandler } from '../server/http.js';
 import { createLimiter } from '../server/limiter.js';
 import { createService } from '../server/service.js';
@@ -12,9 +11,8 @@ import { memoryEventStore } from '../server/store.js';
 let nowMs = Date.parse('2026-11-15T01:10:00Z');
 const store = memoryEventStore(() => new Date(nowMs));
 const service = createService({ store, telegram: null, optionIndex: buildOptionIndex(), venue: VENUE, now: () => nowMs });
-const auth = createAuth({ pin: 'birra-fria-26', secret: 'firma-de-prueba-0123456789abcdef-larga', now: () => nowMs });
 const config = { botToken: '', allowedOrigins: [], trustProxy: false };
-const server = createServer(createHttpHandler({ service, auth, config, webDir: fileURLToPath(new URL('../web/', import.meta.url)), ready: true, now: () => nowMs }));
+const server = createServer(createHttpHandler({ service, config, webDir: fileURLToPath(new URL('../web/', import.meta.url)), ready: true, now: () => nowMs }));
 let base = '';
 
 const status = async (code, since) => {

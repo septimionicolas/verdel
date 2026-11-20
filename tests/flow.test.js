@@ -8,6 +8,7 @@ import { createBot } from '../server/bot.js';
 import { createHttpHandler } from '../server/http.js';
 import { replay } from '../server/night.js';
 import { createService } from '../server/service.js';
+import { createStaffLogin } from '../server/staff-login.js';
 import { memoryEventStore } from '../server/store.js';
 import { createTelegram } from '../server/telegram.js';
 
@@ -33,16 +34,18 @@ async function fakeFetch(url, options) {
   const isForm = options.body instanceof FormData;
   const params = isForm ? { chat_id: Number(options.body.get('chat_id')), caption: options.body.get('caption'), fileName: options.body.get('document').name, html: await options.body.get('document').text() } : JSON.parse(options.body);
   calls.push({ method, params });
+  if (method === 'getChatMember') return Response.json({ ok: true, result: { status: params.user_id === 7 ? 'member' : 'left' } });
   return Response.json({ ok: true, result: { message_id: ++messageId } });
 }
 
 const telegram = createTelegram({ token: 'TEST', apiBase: 'http://telegram.test', fetchImpl: fakeFetch, sleep });
 const store = memoryEventStore(() => new Date(nowMs));
 const service = createService({ store, telegram, optionIndex: buildOptionIndex(), venue: VENUE, now: () => nowMs, log: (event, detail) => logs.push({ event, ...detail }) });
-const bot = createBot({ service, telegram, venue: VENUE, setupKey: 'clave-de-vincular-2026' });
-const auth = createAuth({ pin: 'birra-fria-26', secret: 'firma-de-prueba-0123456789abcdef-larga', now: () => nowMs });
+const auth = createAuth({ pin: 'birra-fria-26', secret: 'firma-de-prueba-0123456789abcdef-larga', setupKey: 'clave-de-vincular-2026', now: () => nowMs });
+const staff = createStaffLogin({ service, auth, telegram, timeZone: VENUE.timeZone, now: () => nowMs, botUsername: () => 'verdel_bot' });
+const bot = createBot({ service, telegram, venue: VENUE, setupKey: 'clave-de-vincular-2026', staff, now: () => nowMs });
 const config = { botToken: 'TEST', allowedOrigins: ['https://carta.test'], trustProxy: false };
-const server = createServer(createHttpHandler({ service, auth, config, webDir: fileURLToPath(new URL('../web/', import.meta.url)), ready: true }));
+const server = createServer(createHttpHandler({ service, staff, config, webDir: fileURLToPath(new URL('../web/', import.meta.url)), ready: true }));
 let base = '';
 let token = '';
 
@@ -51,6 +54,11 @@ const command = (chat, text) => bot.handleUpdate({ message: { text, chat: { id: 
 const tap = (chat, data, name = 'Caro') => bot.handleUpdate({ callback_query: { id: 'q', from: { first_name: name }, message: { chat: { id: chat }, message_id: 5 }, data } });
 const lastAnswer = () => calls.filter((call) => call.method === 'answerCallbackQuery').at(-1).params.text;
 const post = (path, body, headers = {}) => fetch(`${base}${path}`, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) });
+const caro = { id: 7, first_name: 'Carolina' };
+const confirmInTelegram = async (requestId) => {
+  await bot.handleUpdate({ message: { text: `/start in_${requestId}`, chat: { id: 7, type: 'private' }, message_id: 2, from: caro } });
+  await bot.handleUpdate({ callback_query: { id: 'q', from: caro, message: { chat: { id: 7, type: 'private' }, message_id: 3 }, data: `staffme:${requestId}` } });
+};
 const order = (code, force = false) => post('/api/orders', { code, force }, { authorization: `Bearer ${token}` });
 
 before(async () => {
@@ -70,12 +78,20 @@ test('cada grupo se vincula con la clave y sin ella no', async () => {
   assert.ok(calls.some((call) => call.method === 'deleteMessage'));
 });
 
-test('sin ingreso no se confirma nada y el PIN da el ingreso', async () => {
+test('sin ingreso no se confirma nada, y el PIN más la confirmación en Telegram dan el ingreso', async () => {
   assert.equal((await post('/api/orders', { code: 'v1.7.no1x2' })).status, 401);
   assert.equal((await post('/api/staff/sessions', { name: 'Caro', pin: '0000' })).status, 401);
   const response = await post('/api/staff/sessions', { name: 'Caro', pin: 'birra-fria-26' });
-  assert.equal(response.status, 201);
-  token = (await response.json()).token;
+  assert.equal(response.status, 202);
+  const request = await response.json();
+  assert.equal(request.botLink, `https://t.me/verdel_bot?start=in_${request.requestId}`);
+  const credentials = { requestId: request.requestId, claimSecret: request.claimSecret };
+  assert.deepEqual(await (await post('/api/staff/sessions/claim', credentials)).json(), { state: 'pending' });
+  await confirmInTelegram(request.requestId);
+  const claimed = await post('/api/staff/sessions/claim', credentials);
+  assert.equal(claimed.status, 201);
+  token = (await claimed.json()).token;
+  assert.equal((await post('/api/staff/sessions/claim', credentials)).status, 410);
 });
 
 test('el pedido confirmado llega al salón, a cada cocina lo suyo y al dueño', async () => {
@@ -178,6 +194,10 @@ test('el cierre avisa lo que falta cobrar, manda el reporte al dueño y abre otr
   assert.match(sentTo(CHATS.salon).at(-1).params.text, /Vendido: <b>\$ 93\.000<\/b>\nCobrado en caja: \$ 60\.000 \(1\)\nSin cobrar: \$ 33\.000 \(1\)\nAnulados: 1/);
 
   assert.equal(service.state.nights.length, 2);
+  assert.deepEqual(await (await order('v1.5.fe0x2')).json(), { error: 'SESSION_INVALID' });
+  const request = await (await post('/api/staff/sessions', { name: 'Caro', pin: 'birra-fria-26' })).json();
+  await confirmInTelegram(request.requestId);
+  token = (await (await post('/api/staff/sessions/claim', { requestId: request.requestId, claimSecret: request.claimSecret })).json()).token;
   assert.equal((await (await order('v1.5.fe0x2')).json()).number, 1);
   assert.equal(service.state.nights[1].orders[0].id, '2-1');
   await tap(CHATS.salon, 'close:1', 'Septi');

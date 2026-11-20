@@ -1,7 +1,8 @@
+import { randomBytes } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { decodeOrder, priceOrder } from '../web/order-code.js';
-import { applyEvent, clockLabel, currentNight, findDuplicate, findLatestByCode, findOrder, nightStats, replay, stationsOf, trackingState } from './night.js';
+import { applyEvent, clockLabel, currentNight, findDuplicate, findLatestByCode, findOrder, findSession, nightStats, openSessions, replay, stationsOf, trackingState } from './night.js';
 import { createLimiter } from './limiter.js';
 import { kitchenKeyboard, kitchenText, orderKeyboard, orderText, ownerLine, readyAlert, securityText, summaryText } from './messages.js';
 import { NARRATIVE_INSTRUCTIONS, narrativeFacts, narrativeMessage } from './narrative.js';
@@ -40,7 +41,7 @@ export function createService({ store, telegram, stationTelegrams = {}, advisor 
     }
   }
 
-  async function confirmOrder({ code, staff, force = false }) {
+  async function confirmOrder({ code, staff, sessionId = null, force = false }) {
     let priced;
     try {
       priced = priceOrder(optionIndex, decodeOrder(code), venue.tableCount);
@@ -53,7 +54,7 @@ export function createService({ store, telegram, stationTelegrams = {}, advisor 
     const night = currentNight(state);
     const number = night.orders.length + 1;
     const orderId = `${night.number}-${number}`;
-    record({ type: 'order_confirmed', orderId, number, table: priced.table, lines: priced.lines, totalCents: priced.totalCents, staff, code });
+    record({ type: 'order_confirmed', orderId, number, table: priced.table, lines: priced.lines, totalCents: priced.totalCents, staff, sessionId, code });
     const order = findOrder(state, orderId);
 
     const sent = await send('salon', orderText(order, time), { reply_markup: orderKeyboard(order) });
@@ -111,6 +112,33 @@ export function createService({ store, telegram, stationTelegrams = {}, advisor 
     log('security_alert', { kind: alarm.kind, failures: alarm.failures, origins: alarm.origins, delivered: Boolean(sent) });
   }
 
+  function startStaffSession({ tokenHash, name, method, hours, telegramUserId = null, telegramName = null, approvedBy = null }) {
+    const nowMs = now();
+    if (telegramUserId !== null) {
+      for (const old of openSessions(state, nowMs).filter((session) => session.telegramUserId === telegramUserId)) {
+        record({ type: 'staff_session_ended', sessionId: old.sessionId, reason: 'replaced', by: name });
+      }
+    }
+    const sessionId = randomBytes(8).toString('hex');
+    const expiresAt = new Date(nowMs + hours * 60 * 60 * 1000).toISOString();
+    const optional = Object.fromEntries(Object.entries({ telegramUserId, telegramName, approvedBy }).filter(([, value]) => value !== null));
+    record({ type: 'staff_session_started', sessionId, tokenHash, name, ...optional, method, expiresAt });
+    return state.sessions[tokenHash];
+  }
+
+  function endStaffSession(sessionId, reason, by) {
+    const session = openSessions(state, now()).find((candidate) => candidate.sessionId === sessionId);
+    if (!session) return false;
+    record({ type: 'staff_session_ended', sessionId, reason, by });
+    return true;
+  }
+
+  function endAllStaffSessions(by) {
+    const count = openSessions(state, now()).length;
+    record({ type: 'staff_sessions_ended_all', by });
+    return count;
+  }
+
   const stats = () => nightStats(currentNight(state), venue.timeZone);
 
   async function tellNight(closing, role) {
@@ -158,6 +186,16 @@ export function createService({ store, telegram, stationTelegrams = {}, advisor 
     bind,
     closeNight,
     securityAlert,
+    send,
+    chatOf,
+    startStaffSession,
+    endStaffSession,
+    endAllStaffSessions,
+    staffSession: (tokenHash) => findSession(state, tokenHash, now()),
+    openStaffSessions: () => openSessions(state, now()),
+    denyStaffLogin: ({ name, by, reason }) => record({ type: 'staff_login_denied', name, by, reason }),
+    recordEmergencyLogin: (sessionId, name) => record({ type: 'staff_login_emergency', sessionId, name }),
+    recordUnlock: (by) => record({ type: 'login_unlocked', by }),
     charge: (orderId, by) => transition(orderId, 'open', 'order_charged', 'charged', by),
     revertCharge: (orderId, by) => transition(orderId, 'charged', 'charge_reverted', 'uncharged', by),
     voidOrder: (orderId, by) => transition(orderId, 'open', 'order_voided', 'voided', by),

@@ -3,16 +3,14 @@ import { createServer } from 'node:http';
 import { after, before, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { VENUE, buildOptionIndex } from '../web/menu.js';
-import { createAuth } from '../server/auth.js';
 import { createHttpHandler } from '../server/http.js';
 import { createService } from '../server/service.js';
 import { memoryEventStore } from '../server/store.js';
 
 const webDir = fileURLToPath(new URL('../web/', import.meta.url));
 const service = createService({ store: memoryEventStore(), telegram: null, optionIndex: buildOptionIndex(), venue: VENUE });
-const auth = createAuth({ pin: 'birra-fria-26', secret: 'firma-de-prueba-0123456789abcdef-larga' });
 const config = { botToken: '', allowedOrigins: [], trustProxy: false };
-const servers = { ready: createServer(createHttpHandler({ service, auth, config, webDir, ready: true })), off: createServer(createHttpHandler({ service, auth, config, webDir, ready: false })) };
+const servers = { ready: createServer(createHttpHandler({ service, config, webDir, ready: true })), off: createServer(createHttpHandler({ service, config, webDir, ready: false })) };
 const bases = {};
 
 before(async () => {

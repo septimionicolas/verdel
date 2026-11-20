@@ -4,7 +4,6 @@ import { after, before, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { VENUE, buildOptionIndex } from '../web/menu.js';
 import { createAdvisor } from '../server/advisor.js';
-import { createAuth } from '../server/auth.js';
 import { createHttpHandler } from '../server/http.js';
 import { createService } from '../server/service.js';
 import { memoryEventStore } from '../server/store.js';
@@ -29,10 +28,9 @@ async function fakeAnthropic(url, init) {
 const service = createService({ store: memoryEventStore(() => new Date(nowMs)), telegram: null, optionIndex, venue: VENUE, now: () => nowMs });
 const advisor = createAdvisor({ apiKey: 'clave-de-prueba', apiBase: 'http://anthropic.test', model: 'claude-fable-5-2', fetchImpl: fakeAnthropic });
 const suggester = createSuggester({ advisor, optionIndex, nightLimit: 13, nightNumber: () => service.state.nights.at(-1).number, timeoutMs: 40, log: (event, detail) => logs.push({ event, ...detail }) });
-const auth = createAuth({ pin: 'birra-fria-26', secret: 'firma-de-prueba-0123456789abcdef-larga' });
 const servers = {
-  on: createServer(createHttpHandler({ service, auth, config, webDir, ready: true, advisor, suggester, now: () => nowMs })),
-  off: createServer(createHttpHandler({ service, auth, config, webDir, ready: true, now: () => nowMs })),
+  on: createServer(createHttpHandler({ service, config, webDir, ready: true, advisor, suggester, now: () => nowMs })),
+  off: createServer(createHttpHandler({ service, config, webDir, ready: true, now: () => nowMs })),
 };
 const bases = {};
 

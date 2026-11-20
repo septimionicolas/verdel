@@ -17,6 +17,8 @@ const SECURITY_HEADERS = {
   'permissions-policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
 };
 const ERROR_STATUS = { ORDER_ALREADY_SENT: 409, ORDER_CODE_INVALID: 422, PRODUCT_UNKNOWN: 422, TABLE_UNKNOWN: 422 };
+const STAFF_STATUS = { PIN_INVALID: 401, KEY_INVALID: 401, SESSION_INVALID: 401, LOCKED: 429, TOO_MANY_REQUESTS: 429, ASK_LIMIT: 429, RATE_LIMITED: 429, NAME_REQUIRED: 422, ALREADY_ASKED: 409, NO_GROUP: 409, REQUEST_DENIED: 403, EMERGENCY_DISABLED: 403, REQUEST_EXPIRED: 410, TELEGRAM_UNAVAILABLE: 503 };
+const bearer = (request) => String(request.headers.authorization || '').replace(/^Bearer /, '');
 
 async function readJson(request) {
   const chunks = [];
@@ -47,7 +49,7 @@ export function createAppServer(handler) {
   return Object.assign(createServer(handler), SERVER_TIMEOUTS);
 }
 
-export function createHttpHandler({ service, auth, config, webDir, ready, suggester = null, now = Date.now, limits = {} }) {
+export function createHttpHandler({ service, staff, config, webDir, ready, suggester = null, now = Date.now, limits = {} }) {
   const root = resolve(webDir);
   const servedConfig = `export const CONFIG = {\n  apiBase: '',\n  showCurrencySign: false,\n  suggestions: ${Boolean(suggester)},\n  allowedQrOrigins: ${JSON.stringify(config.allowedOrigins)},\n};\n`;
   const caps = { ...HTTP_LIMITS, ...limits };
@@ -59,6 +61,17 @@ export function createHttpHandler({ service, auth, config, webDir, ready, sugges
   const suggestionLimiter = limiter(caps.suggestionsPerOrigin);
   const orderLimiter = limiter(caps.ordersPerSession);
   const forceLimiter = limiter(caps.forcePerCode, caps.forceWindowMs);
+  const credentials = (body) => ({ requestId: body.requestId, claimSecret: body.claimSecret });
+  const staffRoutes = {
+    '/api/staff/sessions': (body, request, origin) => [202, staff.request({ name: body.name, pin: body.pin, origin, userAgent: request.headers['user-agent'] })],
+    '/api/staff/sessions/claim': (body) => {
+      const result = staff.claim(credentials(body));
+      return [result.token ? 201 : 200, result];
+    },
+    '/api/staff/sessions/ask': async (body) => [202, await staff.ask(credentials(body))],
+    '/api/staff/sessions/emergency': async (body, request, origin) => [201, await staff.emergency({ ...credentials(body), setupKey: body.setupKey, origin })],
+    '/api/staff/sessions/end': (body, request) => (staff.end(bearer(request)) ? [204, null] : [401, { error: 'SESSION_INVALID' }]),
+  };
   const limited = (response, headers) => send(response, 429, { error: 'RATE_LIMITED' }, { ...headers, 'cache-control': 'no-store' });
 
   function send(response, status, body, headers = {}) {
@@ -125,22 +138,21 @@ export function createHttpHandler({ service, auth, config, webDir, ready, sugges
       if (!ready) return send(response, 503, { error: 'NOT_CONFIGURED' }, cors);
       const body = await readJson(request);
 
-      if (url.pathname === '/api/staff/sessions') {
-        const name = String(body.name || '').trim().slice(0, 24);
-        if (!name) return send(response, 422, { error: 'NAME_REQUIRED' }, cors);
-        const result = auth.login(String(body.pin || ''), name, origin);
-        if (result.error) return send(response, result.error === 'LOCKED' ? 429 : 401, { error: result.error }, cors);
-        return send(response, 201, result, cors);
+      const staffRoute = staffRoutes[url.pathname];
+      if (staffRoute) {
+        const [status, result] = await staffRoute(body, request, origin);
+        if (result?.error) return send(response, STAFF_STATUS[result.error] || 422, { error: result.error }, { ...cors, 'cache-control': 'no-store' });
+        return send(response, status, status === 204 ? '' : result, { ...cors, 'cache-control': 'no-store' });
       }
 
       if (url.pathname === '/api/orders') {
-        const token = String(request.headers.authorization || '').replace(/^Bearer /, '');
-        const session = auth.verify(token);
+        const token = bearer(request);
+        const session = staff.verify(token);
         if (!session) return send(response, 401, { error: 'SESSION_INVALID' }, cors);
         const code = String(body.code || '');
         const force = body.force === true;
         if (!orderLimiter.take(token) || (force && !forceLimiter.take(code))) return limited(response, cors);
-        const result = await service.confirmOrder({ code, staff: session.name, force });
+        const result = await service.confirmOrder({ code, staff: session.name, sessionId: session.sessionId, force });
         if (result.error) return send(response, ERROR_STATUS[result.error] || 422, result, cors);
         return send(response, 201, result, cors);
       }

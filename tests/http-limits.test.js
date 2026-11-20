@@ -6,9 +6,10 @@ import { VENUE, buildOptionIndex } from '../web/menu.js';
 import { createAuth } from '../server/auth.js';
 import { createHttpHandler } from '../server/http.js';
 import { createService } from '../server/service.js';
+import { createStaffLogin } from '../server/staff-login.js';
 import { memoryEventStore } from '../server/store.js';
 
-const keys = { pin: 'birra-fria-26', secret: 'firma-de-prueba-0123456789abcdef-larga' };
+const keys = { pin: 'birra-fria-26', secret: 'firma-de-prueba-0123456789abcdef-larga', setupKey: 'clave-de-vincular-2026' };
 const MINUTE = 60 * 1000;
 
 async function open({ limits, authOptions = {} } = {}) {
@@ -16,8 +17,9 @@ async function open({ limits, authOptions = {} } = {}) {
   const now = () => clock.now;
   const service = createService({ store: memoryEventStore(() => new Date(clock.now)), telegram: null, optionIndex: buildOptionIndex(), venue: VENUE, now });
   const auth = createAuth({ ...keys, now, ...authOptions });
+  const staff = createStaffLogin({ service, auth, timeZone: VENUE.timeZone, now });
   const config = { botToken: '', allowedOrigins: [], trustProxy: true };
-  const server = createServer(createHttpHandler({ service, auth, config, webDir: fileURLToPath(new URL('../web/', import.meta.url)), ready: true, now, ...(limits ? { limits } : {}) }));
+  const server = createServer(createHttpHandler({ service, staff, config, webDir: fileURLToPath(new URL('../web/', import.meta.url)), ready: true, now, ...(limits ? { limits } : {}) }));
   await new Promise((resolve) => server.listen(0, resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   const call = async (path, { from = '200.1.1.1', method = 'GET', body, token } = {}) => {
@@ -27,7 +29,12 @@ async function open({ limits, authOptions = {} } = {}) {
     return { status: response.status, text: await response.text() };
   };
   const login = (name, pin, from) => call('/api/staff/sessions', { method: 'POST', body: { name, pin }, from });
-  return { clock, call, login, close: () => server.close() };
+  const signIn = async (name) => {
+    const request = JSON.parse((await login(name, keys.pin)).text);
+    const done = await call('/api/staff/sessions/emergency', { method: 'POST', body: { requestId: request.requestId, claimSecret: request.claimSecret, setupKey: keys.setupKey } });
+    return JSON.parse(done.text).token;
+  };
+  return { clock, call, login, signIn, close: () => server.close() };
 }
 
 test('treinta celulares detrás de la misma dirección siguen su pedido diez minutos sin que los frene', async (t) => {
@@ -66,8 +73,8 @@ test('las consultas de estado de una dirección tienen un techo para todo el bar
 test('cada ingreso manda hasta 30 pedidos por minuto y otra moza en la misma dirección sigue', async (t) => {
   const bar = await open();
   t.after(bar.close);
-  const caro = JSON.parse((await bar.login('Caro', keys.pin)).text).token;
-  const marta = JSON.parse((await bar.login('Marta', keys.pin)).text).token;
+  const caro = await bar.signIn('Caro');
+  const marta = await bar.signIn('Marta');
   for (let order = 0; order < 30; order++) assert.notEqual((await bar.call('/api/orders', { method: 'POST', token: caro, body: { code: `v1.${(order % 30) + 1}.no0x${(order % 9) + 1}` } })).status, 429);
   assert.deepEqual(await bar.call('/api/orders', { method: 'POST', token: caro, body: { code: 'v1.1.pe0x1' } }), { status: 429, text: '{"error":"RATE_LIMITED"}' });
   assert.equal((await bar.call('/api/orders', { method: 'POST', token: marta, body: { code: 'v1.1.pe0x1' } })).status, 201);
@@ -78,7 +85,7 @@ test('cada ingreso manda hasta 30 pedidos por minuto y otra moza en la misma dir
 test('el mismo código se puede enviar igual hasta tres veces en diez minutos', async (t) => {
   const bar = await open();
   t.after(bar.close);
-  const token = JSON.parse((await bar.login('Caro', keys.pin)).text).token;
+  const token = await bar.signIn('Caro');
   const resend = () => bar.call('/api/orders', { method: 'POST', token, body: { code: 'v1.5.no0x1', force: true } });
   assert.equal((await bar.call('/api/orders', { method: 'POST', token, body: { code: 'v1.5.no0x1' } })).status, 201);
   for (let time = 0; time < 3; time++) assert.equal((await resend()).status, 201);

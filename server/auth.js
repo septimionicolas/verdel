@@ -1,7 +1,8 @@
-import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
 const digest = (text) => createHash('sha256').update(String(text)).digest();
 export const safeEqual = (a, b) => timingSafeEqual(digest(a), digest(b));
+export const newToken = () => randomBytes(32).toString('base64url');
 
 const MINUTE = 60 * 1000;
 
@@ -9,7 +10,6 @@ export const AUTH_DEFAULTS = {
   maxAttempts: 5,
   lockMs: 5 * MINUTE,
   maxLockMs: 60 * MINUTE,
-  maxAgeMs: 30 * 24 * 60 * MINUTE,
   maxOrigins: 10000,
   alertFailures: 20,
   alertWindowMs: 10 * MINUTE,
@@ -30,13 +30,12 @@ function createWindow(windowMs, maxOrigins) {
   };
 }
 
-export function createAuth({ pin, secret, now = Date.now, notify = () => {}, ...options }) {
+export function createAuth({ pin, secret, setupKey = '', now = Date.now, notify = () => {}, ...options }) {
   const limits = { ...AUTH_DEFAULTS, ...options };
   const attempts = new Map();
   const alertWindow = createWindow(limits.alertWindowMs, limits.maxOrigins);
-  const freezeWindow = createWindow(limits.freezeWindowMs, limits.maxOrigins);
+  let freezeWindow = createWindow(limits.freezeWindowMs, limits.maxOrigins);
   let frozenUntil = 0;
-  const sign = (payload) => createHmac('sha256', secret).update(payload).digest('base64url');
   const forgotten = (entry, at) => at - Math.max(entry.at, entry.lockedUntil) >= limits.maxLockMs;
 
   function remember(origin, entry) {
@@ -72,29 +71,27 @@ export function createAuth({ pin, secret, now = Date.now, notify = () => {}, ...
     }
   }
 
+  function guard(candidate, expected, origin, error) {
+    const at = now();
+    const entry = attempts.get(origin);
+    if ((entry && entry.lockedUntil > at) || frozenUntil > at) return { error: 'LOCKED' };
+    if (!expected || !safeEqual(candidate, expected)) {
+      countFailure(origin, at);
+      watch(origin, at);
+      return { error };
+    }
+    attempts.delete(origin);
+    return { ok: true };
+  }
+
   return {
-    login(candidate, name, origin) {
-      const at = now();
-      const entry = attempts.get(origin);
-      if ((entry && entry.lockedUntil > at) || frozenUntil > at) return { error: 'LOCKED' };
-      if (!pin || !safeEqual(candidate, pin)) {
-        countFailure(origin, at);
-        watch(origin, at);
-        return { error: 'PIN_INVALID' };
-      }
-      attempts.delete(origin);
-      const payload = Buffer.from(JSON.stringify({ name, issuedAt: at })).toString('base64url');
-      return { token: `${payload}.${sign(payload)}`, name };
-    },
-    verify(token) {
-      const [payload, signature] = String(token || '').split('.');
-      if (!payload || !signature || !secret || !safeEqual(signature, sign(payload))) return null;
-      try {
-        const session = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
-        return now() - session.issuedAt < limits.maxAgeMs ? session : null;
-      } catch {
-        return null;
-      }
+    checkPin: (candidate, origin) => guard(candidate, pin, origin, 'PIN_INVALID'),
+    checkKey: (candidate, origin) => guard(candidate, setupKey, origin, 'KEY_INVALID'),
+    hashToken: (token) => createHmac('sha256', secret).update(String(token)).digest('base64url'),
+    unlockAll() {
+      attempts.clear();
+      freezeWindow = createWindow(limits.freezeWindowMs, limits.maxOrigins);
+      frozenUntil = 0;
     },
   };
 }
