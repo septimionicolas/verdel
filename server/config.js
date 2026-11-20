@@ -1,3 +1,8 @@
+function sessionHours(value) {
+  const hours = Number(value);
+  return Number.isInteger(hours) && hours >= 1 && hours <= 16 ? hours : 12;
+}
+
 export function readConfig(env = process.env) {
   return {
     port: Number(env.PORT || 3005),
@@ -9,6 +14,9 @@ export function readConfig(env = process.env) {
     staffPin: env.STAFF_PIN || '',
     setupKey: env.SETUP_KEY || '',
     sessionSecret: env.SESSION_SECRET || '',
+    staffSessionHours: sessionHours(env.STAFF_SESSION_HOURS),
+    staffGroupApproval: env.STAFF_GROUP_APPROVAL !== 'false',
+    staffEmergencyLogin: env.STAFF_EMERGENCY_LOGIN !== 'false',
     trustProxy: env.TRUST_PROXY === 'true',
     anthropicApiKey: env.ANTHROPIC_API_KEY || '',
     anthropicApiBase: env.ANTHROPIC_API_BASE || 'https://api.anthropic.com',
