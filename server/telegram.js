@@ -1,30 +1,31 @@
 import { setTimeout as delay } from 'node:timers/promises';
 
-export function createTelegram({ token, apiBase, fetchImpl = fetch, retryDelaysMs = [1000, 2000, 4000], coolDownMs = 30000, signal, sleep = (ms) => delay(ms, undefined, { signal }), now = Date.now, log = () => {} }) {
+export function createTelegram({ token, apiBase, fetchImpl = fetch, retryDelaysMs = [1000, 2000, 4000], coolDownMs = 30000, timeoutMs = 10000, signal, sleep = (ms) => delay(ms, undefined, { signal }), now = Date.now, log = () => {} }) {
   const url = (method) => `${apiBase}/bot${token}/${method}`;
   let noRetryUntil = 0;
 
-  async function attempt(method, init) {
-    let response;
-    try {
-      response = await fetchImpl(url(method), init);
-    } catch (error) {
-      error.network = true;
-      throw error;
-    }
+  const lost = (error) => {
+    error.network = true;
+    throw error;
+  };
+
+  async function attempt(method, init, waitMs) {
+    const deadline = AbortSignal.timeout(waitMs);
+    const options = { ...init, signal: init.signal ? AbortSignal.any([deadline, init.signal]) : deadline };
+    const response = await fetchImpl(url(method), options).catch(lost);
+    const data = await response.json().catch((error) => (options.signal.aborted ? lost(error) : null));
     noRetryUntil = 0;
-    const data = await response.json().catch(() => null);
     if (data?.ok) return data.result;
     const error = new Error(`TELEGRAM_${method}_${data?.error_code || 'FAILED'}`);
     error.status = data?.error_code ?? response.status;
     throw error;
   }
 
-  async function request(method, buildInit, retry) {
+  async function request(method, buildInit, retry, waitMs = timeoutMs) {
     const delays = retry && now() >= noRetryUntil ? retryDelaysMs : [];
     for (let index = 0; ; index += 1) {
       try {
-        return await attempt(method, buildInit());
+        return await attempt(method, buildInit(), waitMs);
       } catch (error) {
         const transient = error.network || error.status >= 500;
         if (!transient) throw error;
@@ -41,7 +42,8 @@ export function createTelegram({ token, apiBase, fetchImpl = fetch, retryDelaysM
 
   return {
     call(method, params = {}, { retry = true } = {}) {
-      return request(method, () => ({ method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(params) }), retry);
+      const waitMs = timeoutMs + (Number(params.timeout) || 0) * 1000;
+      return request(method, () => ({ method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(params) }), retry, waitMs);
     },
     sendDocument(chatId, fileName, content, caption) {
       return request('sendDocument', () => {
