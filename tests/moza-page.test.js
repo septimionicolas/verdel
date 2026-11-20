@@ -27,3 +27,8 @@ test('el campo del PIN acepta letras y no corta claves largas', async () => {
   assert.match(input, /type="password"/);
   assert.match(input, /autocapitalize="off"/);
 });
+
+test('un enlace con el código roto muestra el aviso en vez de dejar la pantalla en blanco', async () => {
+  const html = await openPage('#%E0%A4%A');
+  assert.match(html, /no se pudo leer/);
+});

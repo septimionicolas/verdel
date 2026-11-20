@@ -6,7 +6,15 @@ const STORAGE_KEY = 'verdel-staff';
 const content = document.querySelector('#content');
 const escapeHtml = (text) => String(text).replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[char]);
 const optionIndex = buildOptionIndex();
-const code = decodeURIComponent(location.hash.slice(1));
+function readCode() {
+  try {
+    return decodeURIComponent(location.hash.slice(1));
+  } catch {
+    return undefined;
+  }
+}
+
+const code = readCode();
 
 function readSession() {
   try {
@@ -24,6 +32,7 @@ function writeSession(session) {
 }
 
 function readOrder() {
+  if (code === undefined) return undefined;
   if (!code) return null;
   try {
     return priceOrder(optionIndex, decodeOrder(code), VENUE.tableCount);
