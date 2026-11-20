@@ -12,15 +12,54 @@ Sin ingreso. `200 { ok, ready }` y nada más: ni grupos vinculados, ni pedidos, 
 
 No es parte de `/api`, pero la sirve el servidor en lugar de `web/config.js`: `apiBase: ''`, `showCurrencySign`, `suggestions` (`true` si hay `ANTHROPIC_API_KEY`) y `allowedQrOrigins` (los orígenes de `ALLOWED_ORIGINS`, que `mesas.html?base=` acepta además del propio).
 
-## `POST /api/staff/sessions`
+## Ingreso de las mozas: `POST /api/staff/sessions` y sus pasos
 
-La usa `moza.html` la primera vez en cada celular.
+Lo usa `moza.html`. El ingreso dura un turno: hasta el cierre de la noche o `STAFF_SESSION_HOURS` (12 por defecto), lo que llegue primero. La identidad la da Telegram; el PIN solo filtra la entrada (D28 y D29 en `docs/decisiones.md`, diseño completo en `docs/seguridad/diseno-ingreso.md`).
 
-- Pide `{ "name": "Caro", "pin": "…" }`.
-- `201 { "token": "…", "name": "Caro" }`.
-- `401 PIN_INVALID`, `422 NAME_REQUIRED`, `429 LOCKED`, `503 NOT_CONFIGURED`.
-- `429 LOCKED` sale tras 5 PIN mal desde el mismo origen (5 minutos, el doble en cada bloqueo seguido, hasta 1 hora) o durante el freno general (15 minutos tras 200 fallidos en 1 hora entre todos los orígenes). Es la misma respuesta en los dos casos y para cualquier celular detrás de esa dirección; mientras dura, el PIN no se prueba. Los ingresos ya dados siguen andando (D23 en `docs/decisiones.md`).
+### `POST /api/staff/sessions`
+
+- Pide `{ "name": "Ana", "pin": "…" }`. El nombre se recorta a 24 caracteres.
+- `202 { "requestId": "…", "claimSecret": "…", "botLink": "https://t.me/<bot>?start=in_<requestId>", "matchCode": "47", "expiresAt": "…", "groupApproval": true, "emergency": true }`. No crea ninguna sesión: abre un pedido de ingreso que vive solo en memoria y vence a los 3 minutos. `claimSecret` lo recibe solo ese navegador; el servidor guarda su hash. `botLink` es `null` si el bot no respondió `getMe` al arrancar o si no hay grupo salon ni owner vinculado; `groupApproval` es `false` si `STAFF_GROUP_APPROVAL=false` o no hay grupo; `emergency` refleja `STAFF_EMERGENCY_LOGIN`.
+- `401 PIN_INVALID`, `422 NAME_REQUIRED`, `429 LOCKED`, `429 TOO_MANY_REQUESTS` (ya hay 5 pedidos pendientes desde ese origen o 30 en total), `503 NOT_CONFIGURED`.
+- `429 LOCKED` sale tras 5 PIN mal desde el mismo origen (5 minutos, el doble en cada bloqueo seguido, hasta 1 hora) o durante el freno general (15 minutos tras 200 fallidos en 1 hora entre todos los orígenes). Es la misma respuesta en los dos casos y para cualquier celular detrás de esa dirección; mientras dura, el PIN no se prueba. Los ingresos ya dados siguen andando (D23) y `/desbloquear` en el grupo owner lo levanta.
 - `401 PIN_INVALID` es igual para un PIN mal con cualquier nombre: la respuesta no dice si falló el nombre, la clave o un bloqueo ajeno.
+
+### `POST /api/staff/sessions/claim`
+
+La página la pregunta cada 2 segundos mientras está visible.
+
+- Pide `{ "requestId": "…", "claimSecret": "…" }`.
+- `200 { "state": "pending" }` mientras nadie confirmó.
+- `201 { "token": "…", "name": "Ana", "expiresAt": "…" }` cuando la moza tocó «Sí, soy yo» en Telegram, el grupo aprobó o hubo ingreso de emergencia. Se entrega una sola vez: el claim siguiente da `410`.
+- `403 REQUEST_DENIED` si tocó «No fui yo» o el grupo rechazó.
+- `410 REQUEST_EXPIRED` si venció, ya se entregó, no existe o el `claimSecret` no coincide (la respuesta no dice cuál).
+- `429 RATE_LIMITED` al pasar 60 consultas por minuto del mismo pedido.
+
+### `POST /api/staff/sessions/ask`
+
+«No tengo Telegram o no estoy en el grupo». Publica el pedido en el grupo salon (u owner si es el único vinculado) con [Aprobar] y [Rechazar].
+
+- Pide `{ "requestId": "…", "claimSecret": "…" }`.
+- `202 { "asked": true }`.
+- `409 ALREADY_ASKED` (una vez por pedido), `409 NO_GROUP` (sin grupo vinculado o `STAFF_GROUP_APPROVAL=false`), `410 REQUEST_EXPIRED`, `429 ASK_LIMIT` (6 publicaciones cada 10 minutos sumando todos los pedidos; al pasarlo el owner recibe un único aviso), `503 TELEGRAM_UNAVAILABLE`.
+
+### `POST /api/staff/sessions/emergency`
+
+«Ingreso de emergencia (lo hace el encargado)». El encargado tipea `SETUP_KEY` en el celular de la moza. El owner recibe siempre «Ingreso de emergencia de «Ana» a las 21:04.».
+
+- Pide `{ "requestId": "…", "claimSecret": "…", "setupKey": "…" }`.
+- `201 { "token": "…", "name": "Ana", "expiresAt": "…" }`.
+- `401 KEY_INVALID` (cuenta para el mismo bloqueo que el PIN), `403 EMERGENCY_DISABLED`, `410 REQUEST_EXPIRED`, `429 LOCKED`.
+
+### `POST /api/staff/sessions/end`
+
+La moza cierra su propio ingreso. Lleva `Authorization: Bearer <token>`, sin cuerpo.
+
+- `204`, `401 SESSION_INVALID`.
+
+### El token
+
+32 bytes al azar en base64url. El servidor no lo guarda: el registro lleva solo `tokenHash` (HMAC-SHA256 con `SESSION_SECRET`). Cambiar `SESSION_SECRET` cierra todos los ingresos. Un token del formato viejo (`datos.firma`) da `401 SESSION_INVALID`.
 
 ## `POST /api/orders`
 
@@ -29,7 +68,7 @@ La usa `moza.html` al tocar «Confirmar y enviar a Telegram». Lleva `Authorizat
 - Pide `{ "code": "v1.7.no1x2-pe0x1", "force": false }`. El servidor valoriza el código con `web/menu.js`.
 - `201 { "number": 23, "totalCents": 4700000, "telegram": "sent" }`. `telegram` es `sent`, `unbound` (no hay grupo de salón) o `failed` (Telegram no respondió ni con los reintentos); en los tres casos el pedido quedó registrado. Durante un corte de red la respuesta puede tardar unos segundos más.
 - `409 ORDER_ALREADY_SENT` con `number`, si el mismo código se confirmó hace menos de 10 minutos. Con `"force": true` entra como otro pedido.
-- `401 SESSION_INVALID`, `422 ORDER_CODE_INVALID`, `422 PRODUCT_UNKNOWN`, `422 TABLE_UNKNOWN`, `503 NOT_CONFIGURED`.
+- `401 SESSION_INVALID` (token vencido, cerrado o desconocido), `422 ORDER_CODE_INVALID`, `422 PRODUCT_UNKNOWN`, `422 TABLE_UNKNOWN`, `503 NOT_CONFIGURED`.
 - `429 RATE_LIMITED` al pasar 30 pedidos por minuto desde el mismo ingreso, o al mandar con `"force": true` el mismo código más de 3 veces en 10 minutos (sumando todos los ingresos). El pedido no queda registrado.
 
 ## `GET /api/orders/status?code=<código v1>&since=<ISO opcional>`
@@ -56,8 +95,9 @@ La usa la carta (`web/app.js`) en «O contanos con tus palabras», debajo de «�
 
 - La carta y el código del pedido: se arman en el celular del cliente (`web/order-code.js`).
 - «Listo», «Cobrado en caja», «Anular» y `/cierre`: son botones y comandos del bot (`server/bot.js`).
+- La confirmación del ingreso en Telegram (`/start in_<requestId>` en el chat privado con el bot, «Sí, soy yo» / «No fui yo»), la aprobación en el grupo ([Aprobar] / [Rechazar]), `/mozas` en salon u owner (lista los ingresos abiertos con [Cerrar] y [Cerrar todas]) y `/desbloquear` solo en owner (levanta el bloqueo del PIN).
 - El párrafo que cuenta la noche en `/cierre`: lo pide el servidor al modelo con solo números agregados y nombres de productos, y lo manda por Telegram como mensaje aparte. No se guarda en el registro.
 
 ## Registro (`data/events.jsonl`)
 
-Una línea por evento, con `sequence`, `at` (UTC) y `type`: `chat_bound`, `order_confirmed`, `message_linked`, `kitchen_ready`, `order_charged`, `charge_reverted`, `order_voided`, `night_closed`. El id de un pedido es `<noche>-<número>`; la numeración vuelve a 1 con cada noche.
+Una línea por evento, con `sequence`, `at` (UTC) y `type`: `chat_bound`, `order_confirmed`, `message_linked`, `kitchen_ready`, `order_charged`, `charge_reverted`, `order_voided`, `night_closed`, `staff_session_started`, `staff_session_ended` (`reason`: `revoked`, `replaced` o `logout`), `staff_sessions_ended_all`, `staff_login_denied` (`reason`: `not_me` o `group`), `staff_login_emergency` y `login_unlocked`. `order_confirmed` lleva `sessionId` del ingreso que lo confirmó. `staff_session_started` guarda `tokenHash`, nunca el token ni el `claimSecret`. `night_closed` cierra, al reconstruir el estado, todos los ingresos abiertos antes que él. El id de un pedido es `<noche>-<número>`; la numeración vuelve a 1 con cada noche.
