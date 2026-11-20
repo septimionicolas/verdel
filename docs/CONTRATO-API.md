@@ -2,6 +2,8 @@
 
 Prefijo `/api`. JSON en UTF-8. La plata va en centavos enteros. Los errores devuelven `{ "error": "CODIGO" }`. Toda respuesta, también los errores y los archivos de la carta, lleva las cabeceras de seguridad de D21 en `docs/decisiones.md`; las de la API, `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`.
 
+Tope general por origen: 2.000 pedidos por minuto a `/api/` y otros 2.000 a los archivos de la carta. Pasado el tope, `429 RATE_LIMITED` con `Cache-Control: no-store`, en cualquier ruta. Todos los celulares del bar salen por la misma dirección del wifi: los topes por origen están medidos para el bar lleno, no para un celular.
+
 ## `GET /api/health`
 
 Sin ingreso. `200 { ok, ready }` y nada más: ni grupos vinculados, ni pedidos, ni si hay Telegram o modelo. `ready` es `false` si falta `STAFF_PIN`, `SETUP_KEY` o `SESSION_SECRET`, o si alguna es débil (ver «Claves» en `docs/decisiones.md`); en ese caso las rutas del salón responden `503 NOT_CONFIGURED`.
@@ -28,6 +30,7 @@ La usa `moza.html` al tocar «Confirmar y enviar a Telegram». Lleva `Authorizat
 - `201 { "number": 23, "totalCents": 4700000, "telegram": "sent" }`. `telegram` es `sent`, `unbound` (no hay grupo de salón) o `failed` (Telegram no respondió ni con los reintentos); en los tres casos el pedido quedó registrado. Durante un corte de red la respuesta puede tardar unos segundos más.
 - `409 ORDER_ALREADY_SENT` con `number`, si el mismo código se confirmó hace menos de 10 minutos. Con `"force": true` entra como otro pedido.
 - `401 SESSION_INVALID`, `422 ORDER_CODE_INVALID`, `422 PRODUCT_UNKNOWN`, `422 TABLE_UNKNOWN`, `503 NOT_CONFIGURED`.
+- `429 RATE_LIMITED` al pasar 30 pedidos por minuto desde el mismo ingreso, o al mandar con `"force": true` el mismo código más de 3 veces en 10 minutos (sumando todos los ingresos). El pedido no queda registrado.
 
 ## `GET /api/orders/status?code=<código v1>&since=<ISO opcional>`
 
@@ -38,7 +41,7 @@ La usa la carta (`web/app.js`) mientras muestra el código y después, para segu
 - `state`: `received` (confirmado y sin cocina, solo bebidas), `cooking` (tiene cocina y falta alguna), `ready` (todas las cocinas avisaron «Listo») o `voided` (anulado). Cobrar no cambia el estado.
 - `at` es la hora del servidor en UTC. La carta toma la primera como `since`, así un pedido igual confirmado antes no se confunde con el nuevo.
 - No devuelve líneas, totales ni nombres de personas.
-- `422 ORDER_CODE_INVALID` si el código no cumple el patrón, `429 RATE_LIMITED` al pasar 40 consultas por minuto desde el mismo origen.
+- `422 ORDER_CODE_INVALID` si el código no cumple el patrón, `429 RATE_LIMITED` al pasar 30 consultas por minuto del mismo código desde el mismo origen (un celular pregunta 12) o 1.200 por minuto desde el mismo origen sumando todos los códigos (30 mesas con 3 celulares cada una preguntan unas 1.080).
 
 ## `POST /api/suggestions`
 

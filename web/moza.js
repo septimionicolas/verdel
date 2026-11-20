@@ -59,10 +59,12 @@ function paintLogin(order, message = '') {
       if (result.status === 201) {
         writeSession({ token: result.data.token, name: result.data.name });
         paintConfirm(order);
-      } else if (result.status === 429) {
-        paintLogin(order, status('error', 'Demasiados intentos. Esperá unos minutos y probá de nuevo.'));
-      } else {
+      } else if (result.status === 401) {
         paintLogin(order, status('error', 'El PIN no es correcto.'));
+      } else if (result.status === 429) {
+        paintLogin(order, status('error', 'Hay demasiados intentos de ingreso. Esperá un rato y probá de nuevo; si no anda, avisale al encargado.'));
+      } else {
+        paintLogin(order, status('error', 'No se pudo ingresar ahora. Avisale al encargado.'));
       }
     } catch {
       paintLogin(order, status('error', 'No hay conexión con el servidor. Probá de nuevo.'));
@@ -82,6 +84,8 @@ function paintConfirm(order, message = '', force = false) {
         content.innerHTML = `${orderCard(order)}${status('ok', `Pedido #${result.data.number} enviado.`)}${warning}`;
       } else if (result.status === 409) {
         paintConfirm(order, status('warning', `Este pedido ya se envió como #${result.data.number}. Si es otra ronda igual, enviala de nuevo.`), true);
+      } else if (result.status === 429) {
+        paintConfirm(order, status('warning', 'Se mandaron muchos pedidos seguidos. Esperá un minuto y probá de nuevo.'), force);
       } else if (result.status === 401) {
         writeSession(null);
         paintLogin(order, status('error', 'Tu ingreso venció. Poné el PIN otra vez.'));

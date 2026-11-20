@@ -73,9 +73,9 @@ test('un código que no cumple el patrón es ORDER_CODE_INVALID', async () => {
   assert.equal((await status('')).status, 422);
 });
 
-test('pasadas 40 consultas por minuto desde el mismo origen responde RATE_LIMITED', async () => {
+test('pasadas 30 consultas por minuto del mismo pedido desde el mismo origen responde RATE_LIMITED', async () => {
   nowMs += 60 * 1000;
-  for (let index = 0; index < 40; index += 1) assert.equal((await status('v1.1.no0x1')).status, 200);
+  for (let index = 0; index < 30; index += 1) assert.equal((await status('v1.1.no0x1')).status, 200);
   assert.deepEqual(await status('v1.1.no0x1'), { status: 429, body: { error: 'RATE_LIMITED' } });
   nowMs += 60 * 1000;
   assert.equal((await status('v1.1.no0x1')).status, 200);

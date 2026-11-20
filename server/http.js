@@ -29,17 +29,37 @@ async function readJson(request) {
   return JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
 }
 
+export const HTTP_LIMITS = {
+  apiPerOrigin: 2000,
+  staticPerOrigin: 2000,
+  statusPerOrigin: 1200,
+  statusPerCode: 30,
+  suggestionsPerOrigin: 5,
+  ordersPerSession: 30,
+  forcePerCode: 3,
+  forceWindowMs: 10 * 60 * 1000,
+  maxKeys: 10000,
+};
+
 export const SERVER_TIMEOUTS = { headersTimeout: 20000, requestTimeout: 30000, keepAliveTimeout: 15000 };
 
 export function createAppServer(handler) {
   return Object.assign(createServer(handler), SERVER_TIMEOUTS);
 }
 
-export function createHttpHandler({ service, auth, config, webDir, ready, suggester = null, now = Date.now }) {
+export function createHttpHandler({ service, auth, config, webDir, ready, suggester = null, now = Date.now, limits = {} }) {
   const root = resolve(webDir);
   const servedConfig = `export const CONFIG = {\n  apiBase: '',\n  showCurrencySign: false,\n  suggestions: ${Boolean(suggester)},\n  allowedQrOrigins: ${JSON.stringify(config.allowedOrigins)},\n};\n`;
-  const statusLimiter = createLimiter({ limit: 40, now });
-  const suggestionLimiter = createLimiter({ limit: 5, now });
+  const caps = { ...HTTP_LIMITS, ...limits };
+  const limiter = (limit, windowMs) => createLimiter({ limit, windowMs, now, maxKeys: caps.maxKeys });
+  const apiLimiter = limiter(caps.apiPerOrigin);
+  const staticLimiter = limiter(caps.staticPerOrigin);
+  const statusLimiter = limiter(caps.statusPerOrigin);
+  const statusCodeLimiter = limiter(caps.statusPerCode);
+  const suggestionLimiter = limiter(caps.suggestionsPerOrigin);
+  const orderLimiter = limiter(caps.ordersPerSession);
+  const forceLimiter = limiter(caps.forcePerCode, caps.forceWindowMs);
+  const limited = (response, headers) => send(response, 429, { error: 'RATE_LIMITED' }, { ...headers, 'cache-control': 'no-store' });
 
   function send(response, status, body, headers = {}) {
     const payload = typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body);
@@ -71,19 +91,23 @@ export function createHttpHandler({ service, auth, config, webDir, ready, sugges
   return async function handle(request, response) {
     const url = new URL(request.url, 'http://localhost');
     const cors = corsHeaders(request);
+    const origin = clientOrigin(request, config.trustProxy);
     try {
       if (!url.pathname.startsWith('/api/')) {
         if (request.method !== 'GET' && request.method !== 'HEAD') return send(response, 405, { error: 'METHOD_NOT_ALLOWED' });
+        if (!staticLimiter.take(origin)) return limited(response);
         return await serveStatic(url.pathname, response);
       }
+      if (!apiLimiter.take(origin)) return limited(response, cors);
       if (request.method === 'OPTIONS') return send(response, 204, '', cors);
       if (request.method === 'GET' && url.pathname === '/api/health') {
         return send(response, 200, { ok: true, ready }, cors);
       }
       if (request.method === 'GET' && url.pathname === '/api/orders/status') {
-        if (!statusLimiter.take(clientOrigin(request, config.trustProxy))) return send(response, 429, { error: 'RATE_LIMITED' }, { ...cors, 'cache-control': 'no-store' });
+        const code = url.searchParams.get('code') || '';
+        if (!statusCodeLimiter.take(`${origin} ${code}`) || !statusLimiter.take(origin)) return limited(response, cors);
         try {
-          return send(response, 200, service.orderStatus(url.searchParams.get('code') || '', url.searchParams.get('since') || ''), { ...cors, 'cache-control': 'no-store' });
+          return send(response, 200, service.orderStatus(code, url.searchParams.get('since') || ''), { ...cors, 'cache-control': 'no-store' });
         } catch {
           return send(response, 422, { error: 'ORDER_CODE_INVALID' }, cors);
         }
@@ -91,7 +115,7 @@ export function createHttpHandler({ service, auth, config, webDir, ready, sugges
       if (request.method !== 'POST') return send(response, 405, { error: 'METHOD_NOT_ALLOWED' }, cors);
       if (url.pathname === '/api/suggestions') {
         if (!suggester) return send(response, 503, { error: 'ADVISOR_OFF' }, cors);
-        if (!suggestionLimiter.take(clientOrigin(request, config.trustProxy))) return send(response, 429, { error: 'RATE_LIMITED' }, cors);
+        if (!suggestionLimiter.take(origin)) return limited(response, cors);
         const text = cleanSuggestionText((await readJson(request))?.text);
         if (!text) return send(response, 422, { error: 'TEXT_REQUIRED' }, cors);
         const result = await suggester.suggest(text);
@@ -104,15 +128,19 @@ export function createHttpHandler({ service, auth, config, webDir, ready, sugges
       if (url.pathname === '/api/staff/sessions') {
         const name = String(body.name || '').trim().slice(0, 24);
         if (!name) return send(response, 422, { error: 'NAME_REQUIRED' }, cors);
-        const result = auth.login(String(body.pin || ''), name, clientOrigin(request, config.trustProxy));
+        const result = auth.login(String(body.pin || ''), name, origin);
         if (result.error) return send(response, result.error === 'LOCKED' ? 429 : 401, { error: result.error }, cors);
         return send(response, 201, result, cors);
       }
 
       if (url.pathname === '/api/orders') {
-        const session = auth.verify(String(request.headers.authorization || '').replace(/^Bearer /, ''));
+        const token = String(request.headers.authorization || '').replace(/^Bearer /, '');
+        const session = auth.verify(token);
         if (!session) return send(response, 401, { error: 'SESSION_INVALID' }, cors);
-        const result = await service.confirmOrder({ code: String(body.code || ''), staff: session.name, force: body.force === true });
+        const code = String(body.code || '');
+        const force = body.force === true;
+        if (!orderLimiter.take(token) || (force && !forceLimiter.take(code))) return limited(response, cors);
+        const result = await service.confirmOrder({ code, staff: session.name, force });
         if (result.error) return send(response, ERROR_STATUS[result.error] || 422, result, cors);
         return send(response, 201, result, cors);
       }
