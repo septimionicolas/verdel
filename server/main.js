@@ -24,7 +24,7 @@ const stationTelegrams = Object.fromEntries(Object.entries(config.stationBotToke
 const advisor = config.anthropicApiKey ? createAdvisor({ apiKey: config.anthropicApiKey, apiBase: config.anthropicApiBase, model: config.advisorModel, log }) : null;
 const service = createService({ store: openEventStore(config.dataDir), telegram, stationTelegrams, advisor, optionIndex: buildOptionIndex(), venue: VENUE, reportsDir: join(config.dataDir, 'reports'), log });
 const suggester = advisor ? createSuggester({ advisor, optionIndex: buildOptionIndex(), nightLimit: config.advisorNightLimit, nightNumber: () => currentNight(service.state).number, log }) : null;
-const auth = createAuth({ pin: config.staffPin, secret: config.sessionSecret });
+const auth = createAuth({ pin: config.staffPin, secret: config.sessionSecret, notify: (alarm) => service.securityAlert(alarm) });
 const webDir = fileURLToPath(new URL('../web/', import.meta.url));
 const server = createAppServer(createHttpHandler({ service, auth, config, webDir, ready: settings.ready, suggester }));
 

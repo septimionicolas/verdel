@@ -2,12 +2,14 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { decodeOrder, priceOrder } from '../web/order-code.js';
 import { applyEvent, clockLabel, currentNight, findDuplicate, findLatestByCode, findOrder, nightStats, replay, stationsOf, trackingState } from './night.js';
-import { kitchenKeyboard, kitchenText, orderKeyboard, orderText, ownerLine, readyAlert, summaryText } from './messages.js';
+import { createLimiter } from './limiter.js';
+import { kitchenKeyboard, kitchenText, orderKeyboard, orderText, ownerLine, readyAlert, securityText, summaryText } from './messages.js';
 import { NARRATIVE_INSTRUCTIONS, narrativeFacts, narrativeMessage } from './narrative.js';
 import { nightTitle, renderReport } from './report.js';
 
-export function createService({ store, telegram, stationTelegrams = {}, advisor = null, optionIndex, venue, reportsDir = null, now = Date.now, log = () => {} }) {
+export function createService({ store, telegram, stationTelegrams = {}, advisor = null, optionIndex, venue, reportsDir = null, now = Date.now, log = () => {}, alertsPerHour = 6 }) {
   const state = replay(store.events);
+  const alertLimiter = createLimiter({ limit: alertsPerHour, windowMs: 60 * 60 * 1000, now, maxKeys: 1 });
   const time = clockLabel(venue.timeZone);
   const record = (event) => applyEvent(state, store.append(event));
   const chatOf = (role) => state.bindings[role]?.chatId;
@@ -104,6 +106,11 @@ export function createService({ store, telegram, stationTelegrams = {}, advisor 
     return order ? { state: trackingState(order), number: order.number, at } : { state: 'waiting', at };
   }
 
+  async function securityAlert(alarm) {
+    const sent = alertLimiter.take('owner') ? await send('owner', securityText(alarm)) : null;
+    log('security_alert', { kind: alarm.kind, failures: alarm.failures, origins: alarm.origins, delivered: Boolean(sent) });
+  }
+
   const stats = () => nightStats(currentNight(state), venue.timeZone);
 
   async function tellNight(closing, role) {
@@ -150,6 +157,7 @@ export function createService({ store, telegram, stationTelegrams = {}, advisor 
     askVoid,
     bind,
     closeNight,
+    securityAlert,
     charge: (orderId, by) => transition(orderId, 'open', 'order_charged', 'charged', by),
     revertCharge: (orderId, by) => transition(orderId, 'charged', 'charge_reverted', 'uncharged', by),
     voidOrder: (orderId, by) => transition(orderId, 'open', 'order_voided', 'voided', by),

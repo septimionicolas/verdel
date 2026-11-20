@@ -63,6 +63,12 @@ export function summaryText(stats, venueName) {
   return lines.join('\n');
 }
 
+export function securityText(alarm) {
+  const count = `${alarm.failures} ingresos fallidos al salón en ${alarm.windowMinutes} minutos, desde ${alarm.origins} direcciones.`;
+  if (alarm.kind === 'frozen') return [`🛑 <b>Ingresos frenados ${alarm.frozenMinutes} minutos</b>`, count, 'Nadie puede entrar de nuevo hasta que pase; las mozas que ya entraron siguen tomando pedidos.', 'Si no fueron ustedes, cambiá STAFF_PIN.'].join('\n');
+  return ['⚠️ <b>Intentos de ingreso</b>', count, 'Si no fueron ustedes, cambiá STAFF_PIN.'].join('\n');
+}
+
 export function pendingText(stats) {
   return stats.pendingOrders.map((order) => `• ${tableLabel(order.table)} · #${order.number} · ${money(order.totalCents)} · ${order.at}`).join('\n');
 }
