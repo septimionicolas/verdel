@@ -227,7 +227,8 @@ test('tope de 5 pendientes por origen y 30 en total, y pasado el límite de ask 
   assert.equal(results.filter((result) => result.asked).length, 6);
   assert.deepEqual(results.slice(6).map((result) => result.error), ['ASK_LIMIT', 'ASK_LIMIT', 'ASK_LIMIT']);
   assert.deepEqual(flood.toOwner(), ['Hay muchos pedidos de ingreso con el PIN correcto. Si no son de ustedes, cambiá STAFF_PIN.']);
-  assert.equal(toOwner().length, 0);
+  assert.equal(toOwner().length, 1);
+  assert.match(toOwner()[0], /30 pedidos de ingreso pendientes/);
 });
 
 test('rechazar en el grupo deja el pedido rechazado y le avisa al dueño', async () => {

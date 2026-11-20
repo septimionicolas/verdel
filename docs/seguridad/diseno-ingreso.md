@@ -114,9 +114,9 @@ Repo: /Users/nickynight/dev/verdel, rama seguridad/cierre-2026-11-20, HEAD e3303
 | **Cambio de celular a mitad de la noche** | Ingresa de nuevo en el celular nuevo. Si entra por Telegram, la sesión vieja se cierra sola (replaced). Si entra por grupo o por emergencia, la vieja queda abierta hasta el cierre o hasta que alguien la cierre en `/mozas`. |
 | **Celular robado** | Cualquier integrante de salon u owner usa `/mozas` y toca [Cerrar] o [Cerrar todas]. La sesión robada solo puede confirmar pedidos: no cobra ni anula, porque eso se hace en Telegram. Cada pedido queda firmado con `sessionId`. |
 | **Dueño ausente** | No hace falta. Verifica Telegram o aprueba cualquier integrante de salon. La emergencia necesita a alguien que sepa SETUP_KEY (ver riesgos). |
-| **Inundación de pedidos de ingreso de alguien que sabe el PIN** | Los pendientes tienen un tope de 5 por origen y 30 en total, y al pasarse se responde `429 TOO_MANY_REQUESTS`. El camino de Telegram no publica nada. El ask tiene un tope de 6 publicaciones en el grupo cada 10 minutos en total; al superarlo se responde `429 ASK_LIMIT` y se manda un único aviso al owner: "Hay muchos pedidos de ingreso con el PIN correcto. Si no son de ustedes, cambiá STAFF_PIN." Cada "No fui yo" y cada rechazo en el grupo también le avisa al owner. |
+| **Inundación de pedidos de ingreso de alguien que sabe el PIN** | Los pendientes tienen un tope de 5 por origen y 30 en total, y al pasarse se responde `429 TOO_MANY_REQUESTS`. Cuando se llenan los 30, el owner recibe un único aviso (se rearma cuando vuelve a haber lugar): sin eso, quien sepa el PIN deja al bar sin poder ingresar renovando 30 pedidos cada 3 minutos y nadie se entera. `/desbloquear` vacía los pedidos que no están aprobados. El camino de Telegram no publica nada. El ask tiene un tope de 6 publicaciones en el grupo cada 10 minutos en total; al superarlo se responde `429 ASK_LIMIT` y se manda un único aviso al owner: "Hay muchos pedidos de ingreso con el PIN correcto. Si no son de ustedes, cambiá STAFF_PIN." Cada "No fui yo" y cada rechazo en el grupo también le avisa al owner. |
 
-**Bloqueo por origen:** la regla de 5 PIN fallidos y 5 minutos, que trae la otra rama, bloquea a todo el bar porque comparte una sola IP pública. No cambio esa regla. Agrego `/desbloquear` en el grupo owner, que llama a `auth.unlockAll()` y registra `login_unlocked {by}`, para que la operación no quede frenada.
+**Bloqueo por origen:** la regla de 5 PIN fallidos y 5 minutos, que trae la otra rama, bloquea a todo el bar porque comparte una sola IP pública. No cambio esa regla. Agrego `/desbloquear` en el grupo owner, que llama a `auth.unlockAll()`, vacía los pedidos de ingreso pendientes y rechazados (los aprobados que la moza todavía no retiró se quedan) y registra `login_unlocked {by}`, para que la operación no quede frenada.
 
 ## 4. Código v2 (D25)
 - **Formato:** `v2.<nonce>.<mesa>.<líneas>`.
@@ -210,7 +210,7 @@ STAFF_PIN, SETUP_KEY y SESSION_SECRET no cambian de nombre. La regla de claves d
 12. Un token con el formato viejo da 401 SESSION_INVALID.
 13. Una sesión nueva de la misma persona de Telegram cierra la anterior.
 14. `/mozas` con [Cerrar] invalida esa sesión, y [Cerrar todas] con su confirmación invalida todas.
-15. El tope de 5 pendientes por origen y 30 en total da 429. Pasado el límite de ask, el owner recibe un único aviso.
+15. El tope de 5 pendientes por origen y 30 en total da 429; llenar los 30 le avisa una sola vez al owner, y `/desbloquear` los vacía. Pasado el límite de ask, el owner recibe un único aviso.
 16. `/desbloquear` en owner levanta el bloqueo del origen y en salon no hace nada.
 17. Un código v2 válido se confirma. El mismo nonce da 409 same_code aunque venga con `force`. Un nonce de un pedido anulado tampoco se puede reusar.
 18. Un nonce distinto con el mismo contenido dentro de los 10 minutos da 409 similar, `force` lo deja pasar, y a los 11 minutos pasa sin aviso.

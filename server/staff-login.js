@@ -36,6 +36,7 @@ export function createStaffLogin({ service, auth, telegram = null, timeZone, now
   const askLimiter = createLimiter({ limit: caps.asksPerWindow, windowMs: caps.askWindowMs, now, maxKeys: 1 });
   const time = clockLabel(timeZone);
   let askAlerted = false;
+  let fullAlerted = false;
 
   const verifierRole = () => ['salon', 'owner'].find((role) => service.chatOf(role));
   const live = (entry) => entry && entry.expiresAtMs > now();
@@ -73,7 +74,15 @@ export function createStaffLogin({ service, auth, telegram = null, timeZone, now
     if (checked.error) return checked;
     sweep();
     const fromOrigin = [...pending.values()].filter((entry) => entry.origin === origin).length;
-    if (fromOrigin >= caps.pendingPerOrigin || pending.size >= caps.pendingTotal) return { error: 'TOO_MANY_REQUESTS' };
+    if (pending.size >= caps.pendingTotal) {
+      if (!fullAlerted) {
+        fullAlerted = true;
+        service.send('owner', `Hay ${pending.size} pedidos de ingreso pendientes y no entra ninguno más. Si no son de ustedes, mandá /desbloquear para vaciarlos y cambiá STAFF_PIN.`);
+      }
+      return { error: 'TOO_MANY_REQUESTS' };
+    }
+    fullAlerted = false;
+    if (fromOrigin >= caps.pendingPerOrigin) return { error: 'TOO_MANY_REQUESTS' };
     const requestId = randomBytes(16).toString('base64url');
     const claimSecret = randomBytes(32).toString('base64url');
     const entry = { id: requestId, secretHash: hashSecret(claimSecret), name: cleanName, origin, device: deviceLabel(userAgent), matchCode: String(randomInt(100)).padStart(2, '0'), expiresAtMs: now() + caps.requestMs, state: 'pending', asked: false };
@@ -217,6 +226,11 @@ export function createStaffLogin({ service, auth, telegram = null, timeZone, now
     sweep,
     unlock: (by) => {
       auth.unlockAll();
+      for (const [id, entry] of pending) {
+        if (entry.state === 'approved') continue;
+        pending.delete(id);
+        if (entry.state === 'pending' && entry.groupMessage) edit(entry.groupMessage, 'Cancelado con /desbloquear.');
+      }
       service.recordUnlock(by);
     },
   };
