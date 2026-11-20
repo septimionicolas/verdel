@@ -1,6 +1,6 @@
 import { CONFIG } from './config.js';
 import { VENUE, SECTIONS, ROUND_QUESTIONS, pickRound, PAIRINGS, FOOD_SECTIONS, DRINK_SECTIONS, buildOptionIndex, formatAmount } from './menu.js';
-import { decodeOrder, encodeOrder, priceOrder, tableLabel } from './order-code.js';
+import { MAX_LINES, createNonceKeeper, decodeOrder, encodeOrder, priceOrder, tableLabel } from './order-code.js';
 import { qrSvg } from './qr.js';
 import { ART } from './art.js';
 import { isModestDevice } from './device.js';
@@ -184,8 +184,11 @@ function totals() {
   return { units, cents };
 }
 
+const nonces = createNonceKeeper();
+
 function changeQuantity(key, delta) {
   dropWaitingWatch();
+  nonces.forget();
   const quantity = Math.min(99, (order.get(key) || 0) + delta);
   if (quantity <= 0) order.delete(key);
   else order.set(key, quantity);
@@ -202,23 +205,41 @@ function paintOrderList() {
   select('#sheet-total').textContent = `$${formatAmount(totals().cents)}`;
 }
 
+const QR_TOO_LONG = `El pedido no entra en un solo código. Dejá hasta ${MAX_LINES} productos distintos y mostrale el resto a la moza.`;
+const NO_NONCE = 'Tu navegador no puede armar el código. Mostrale el pedido a la moza.';
+
+function emptyQr(box, message) {
+  box.className = 'qr-box is-empty';
+  box.textContent = message;
+}
+
+function orderTarget(lines) {
+  const target = new URL('moza.html', location.href);
+  target.search = '';
+  target.hash = encodeOrder(table, lines, nonces.nonceFor(`${table}.${lines.map((line) => `${line.key}x${line.quantity}`).join('-')}`));
+  return target;
+}
+
 function paintQr() {
   const box = select('#qr-box');
   select('#table-picker').hidden = tableParam !== '' && table !== null;
   select('#qr-total').textContent = `$${formatAmount(totals().cents)}`;
-  if (table === null) {
-    box.className = 'qr-box is-empty';
-    box.textContent = 'Elegí tu mesa para ver el código.';
-    select('#qr-table').textContent = '';
-    return;
-  }
+  select('#qr-table').textContent = table === null ? '' : tableLabel(table);
+  if (table === null) return emptyQr(box, 'Elegí tu mesa para ver el código.');
   const lines = [...order].map(([key, quantity]) => ({ key, quantity }));
-  const target = new URL('moza.html', location.href);
-  target.search = '';
-  target.hash = encodeOrder(table, lines);
+  if (lines.length > MAX_LINES) return emptyQr(box, QR_TOO_LONG);
+  let target;
+  try {
+    target = orderTarget(lines);
+  } catch {
+    return emptyQr(box, NO_NONCE);
+  }
+  try {
+    box.innerHTML = qrSvg(target.href, { dark: '#0E2B21', light: '#F7EFDD', margin: 3 });
+  } catch {
+    return emptyQr(box, QR_TOO_LONG);
+  }
   box.className = 'qr-box';
-  box.innerHTML = qrSvg(target.href, { dark: '#0E2B21', light: '#F7EFDD', margin: 3 });
-  select('#qr-table').textContent = tableLabel(table);
   if (lines.length) startWatch(target.hash.slice(1));
 }
 
@@ -228,7 +249,7 @@ let watchBusy = false;
 
 function saveWatch() {
   try {
-    if (watch && watch.phase !== 'done' && watch.since) localStorage.setItem(WATCH_KEY, JSON.stringify({ code: watch.code, since: watch.since }));
+    if (watch && watch.phase !== 'done') localStorage.setItem(WATCH_KEY, JSON.stringify({ code: watch.code, started: watch.started }));
     else localStorage.removeItem(WATCH_KEY);
   } catch {}
 }
@@ -237,13 +258,13 @@ function loadWatch() {
   if (!tracking) return;
   try {
     const saved = JSON.parse(localStorage.getItem(WATCH_KEY) || 'null');
-    if (saved && typeof saved.code === 'string' && typeof saved.since === 'string') watch = { code: saved.code, since: saved.since, phase: 'waiting' };
+    if (saved && typeof saved.code === 'string' && typeof saved.started === 'string') watch = { code: saved.code, started: saved.started, phase: 'waiting' };
   } catch {}
 }
 
 function startWatch(code) {
   if (!tracking || (watch && watch.phase === 'waiting' && watch.code === code)) return;
-  watch = { code, since: null, phase: 'waiting' };
+  watch = { code, started: null, phase: 'waiting' };
   saveWatch();
   pollWatch();
 }
@@ -270,15 +291,16 @@ async function pollWatch() {
   watchBusy = true;
   try {
     const params = new URLSearchParams({ code: current.code });
-    if (current.since) params.set('since', current.since);
     const response = await fetch(`${CONFIG.apiBase}/api/orders/status?${params}`, { cache: 'no-store' });
     if (response.status === 429) delay = RATE_LIMITED_POLL_MS;
     else if (response.ok && current === watch) {
       const data = await response.json();
-      if (!current.since) {
-        current.since = data.at;
-        saveWatch();
-      } else {
+      if (data.state === 'unknown') stopWatch();
+      else {
+        if (!current.started) {
+          current.started = data.at;
+          saveWatch();
+        }
         applyStatus(current, data);
       }
     }
@@ -289,7 +311,7 @@ async function pollWatch() {
 }
 
 function applyStatus(current, data) {
-  const expired = Date.parse(data.at) - Date.parse(current.since) > WATCH_LIMIT_MS;
+  const expired = Date.parse(data.at) - Date.parse(current.started) > WATCH_LIMIT_MS;
   if (!['received', 'cooking', 'ready', 'voided'].includes(data.state)) {
     if (expired) stopWatch();
     return;
@@ -307,6 +329,7 @@ function applyStatus(current, data) {
     }
     current.phase = 'tracking';
     order.clear();
+    nonces.forget();
     saveOrder();
     hidePairing();
     sheetOpen = true;
@@ -556,6 +579,7 @@ document.addEventListener('click', (event) => {
     const confirmed = Boolean(event.target.closest('#order-done'));
     dropWaitingWatch();
     order.clear();
+    nonces.forget();
     saveOrder();
     paint();
     notify(confirmed ? 'Pedido confirmado. ¡Salud!' : 'Pedido vaciado');

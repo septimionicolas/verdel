@@ -94,10 +94,10 @@ function night({ advisor }) {
     service,
     calls,
     async play() {
-      await service.confirmOrder({ code: 'v1.7.no1x2-pe0x1', staff: 'Carolina Pérez' });
+      await service.confirmOrder({ code: 'v2.aaaaaaaaaaaaaaaaaaaa.7.no1x2-pe0x1', staff: 'Carolina Pérez' });
       nowMs += 20 * 60 * 1000;
       await service.markReady('1-1', 'pizzas', 'Juan Gómez');
-      await service.confirmOrder({ code: 'v1.3.fe0x2', staff: 'Martina' });
+      await service.confirmOrder({ code: 'v2.bbbbbbbbbbbbbbbbbbbb.3.fe0x2', staff: 'Martina' });
       await service.voidOrder('1-2', 'Martina');
       nowMs += 60 * 60 * 1000;
       await service.closeNight('Septimio Nicolás');

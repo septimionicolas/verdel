@@ -17,18 +17,18 @@ function setup({ owner = true, alertsPerHour } = {}) {
   return { service, sent, logs, advance: (ms) => (now += ms) };
 }
 
-test('el aviso de ingresos fallidos llega al grupo del dueño con cuántos y desde cuántas direcciones, sin el PIN ni el nombre probados', async () => {
+test('el aviso de ingresos fallidos llega al grupo del dueño con cuántos y desde cuántas direcciones, sin el PIN ni la dirección probados', async () => {
   const { service, sent } = setup();
   const alarms = [];
   const auth = createAuth({ ...keys, notify: (alarm) => alarms.push(service.securityAlert(alarm)) });
-  for (let origin = 0; origin < 20; origin++) auth.login(`pin-probado-${origin}`, 'Intruso Raro', `10.0.0.${origin}`);
+  for (let origin = 0; origin < 20; origin++) auth.checkPin(`pin-probado-${origin}`, `10.0.0.${origin}`);
   await Promise.all(alarms);
   assert.equal(sent.length, 1);
   assert.equal(sent[0].chat_id, -4);
   assert.match(sent[0].text, /20 ingresos fallidos/);
   assert.match(sent[0].text, /20 direcciones/);
   assert.match(sent[0].text, /STAFF_PIN/);
-  assert.doesNotMatch(sent[0].text, /pin-probado|Intruso|10\.0\.0/);
+  assert.doesNotMatch(sent[0].text, /pin-probado|10\.0\.0/);
 });
 
 test('el freno de ingresos avisa que las mozas que ya entraron siguen andando', async () => {

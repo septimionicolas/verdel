@@ -3,7 +3,6 @@ import { createServer } from 'node:http';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { VENUE, buildOptionIndex } from '../web/menu.js';
-import { createAuth } from '../server/auth.js';
 import { createHttpHandler } from '../server/http.js';
 import { createService } from '../server/service.js';
 import { memoryEventStore } from '../server/store.js';
@@ -20,9 +19,8 @@ async function open({ nightLimit = 300 } = {}) {
   const advisor = { ask: async () => JSON.stringify({ phrase: 'Una Norte.', lines: [{ key: 'no0', quantity: 1 }] }) };
   const service = createService({ store: memoryEventStore(() => new Date(clock.now)), telegram: null, optionIndex, venue: VENUE, now });
   const suggester = createSuggester({ advisor, optionIndex, nightLimit, nightNumber: () => 1, log: (event, detail) => logs.push({ event, ...detail }) });
-  const auth = createAuth({ pin: 'birra-fria-26', secret: 'firma-de-prueba-0123456789abcdef-larga', now });
   const config = { botToken: '', allowedOrigins: [], trustProxy: true };
-  const server = createServer(createHttpHandler({ service, auth, config, webDir, ready: true, suggester, now }));
+  const server = createServer(createHttpHandler({ service, staff: null, config, webDir, ready: true, suggester, now }));
   await new Promise((resolve) => server.listen(0, resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   const ask = async (body, from = '200.1.1.1') => {

@@ -1,20 +1,48 @@
-const PATTERN = /^v1\.(\d{1,2})\.([a-z0-9]{3}x\d{1,2}(?:-[a-z0-9]{3}x\d{1,2}){0,39})$/;
+export const MAX_LINES = 16;
+const NONCE_ALPHABET = 'abcdefghijklmnopqrstuvwxyz234567';
+const LINES = `[a-z0-9]{3}x\\d{1,2}(?:-[a-z0-9]{3}x\\d{1,2}){0,${MAX_LINES - 1}}`;
+const PATTERN = new RegExp(`^v2\\.([a-z2-7]{20})\\.(\\d{1,2})\\.(${LINES})$`);
+const OLD_PATTERN = /^v1\.(\d{1,2})\.([a-z0-9]{3}x\d{1,2}(?:-[a-z0-9]{3}x\d{1,2}){0,39})$/;
 
-export function encodeOrder(table, lines) {
-  return `v1.${table}.${lines.map((line) => `${line.key}x${line.quantity}`).join('-')}`;
+export function newNonce(source = globalThis.crypto) {
+  if (!source || typeof source.getRandomValues !== 'function') throw new Error('NONCE_UNAVAILABLE');
+  return [...source.getRandomValues(new Uint8Array(20))].map((byte) => NONCE_ALPHABET[byte & 31]).join('');
+}
+
+export function createNonceKeeper(source = globalThis.crypto) {
+  let shown = null;
+  return {
+    nonceFor(key) {
+      if (!shown || shown.key !== key) shown = { key, nonce: newNonce(source) };
+      return shown.nonce;
+    },
+    forget() {
+      shown = null;
+    },
+  };
+}
+
+export function encodeOrder(table, lines, nonce) {
+  return `v2.${nonce}.${table}.${lines.map((line) => `${line.key}x${line.quantity}`).join('-')}`;
 }
 
 export function decodeOrder(code) {
-  const match = PATTERN.exec(String(code));
-  if (!match) throw new Error('ORDER_CODE_INVALID');
+  const text = String(code);
+  const match = PATTERN.exec(text);
+  if (!match) throw new Error(OLD_PATTERN.test(text) ? 'ORDER_CODE_OLD' : 'ORDER_CODE_INVALID');
   const merged = new Map();
-  for (const part of match[2].split('-')) {
+  for (const part of match[3].split('-')) {
     const key = part.slice(0, 3);
     const quantity = Number(part.slice(4));
     if (quantity < 1) throw new Error('ORDER_CODE_INVALID');
     merged.set(key, (merged.get(key) || 0) + quantity);
   }
-  return { table: Number(match[1]), lines: [...merged].map(([key, quantity]) => ({ key, quantity })) };
+  return { nonce: match[1], table: Number(match[2]), lines: [...merged].map(([key, quantity]) => ({ key, quantity })) };
+}
+
+export function contentKey(decoded) {
+  const lines = [...decoded.lines].sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+  return `${decoded.table}.${lines.map((line) => `${line.key}x${line.quantity}`).join('-')}`;
 }
 
 export function priceOrder(optionIndex, decoded, tableCount) {

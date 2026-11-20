@@ -5,7 +5,7 @@ import { createAuth } from '../server/auth.js';
 const keys = { pin: 'birra-fria-26', secret: 'firma-de-prueba-0123456789abcdef-larga' };
 const minutes = (count) => count * 60 * 1000;
 const fail = (auth, origin, times = 1) => {
-  for (let attempt = 0; attempt < times; attempt++) auth.login('0000', 'Caro', origin);
+  for (let attempt = 0; attempt < times; attempt++) auth.checkPin('0000', origin);
 };
 
 test('cada bloqueo seguido del mismo origen dura el doble, con techo de una hora', () => {
@@ -15,7 +15,7 @@ test('cada bloqueo seguido del mismo origen dura el doble, con techo de una hora
   fail(auth, 'bar', 5);
   for (let lock = 0; lock < 7; lock++) {
     const start = now;
-    while (auth.login('0000', 'Caro', 'bar').error === 'LOCKED') now += minutes(1);
+    while (auth.checkPin('0000', 'bar').error === 'LOCKED') now += minutes(1);
     lengths.push((now - start) / minutes(1));
     fail(auth, 'bar', 4);
   }
@@ -29,10 +29,10 @@ test('entrar bien desde ese origen vuelve el bloqueo a cinco minutos', () => {
   now += minutes(5);
   fail(auth, 'bar', 5);
   now += minutes(10);
-  assert.ok(auth.login(keys.pin, 'Caro', 'bar').token);
+  assert.ok(auth.checkPin(keys.pin, 'bar').ok);
   fail(auth, 'bar', 5);
   now += minutes(5);
-  assert.ok(auth.login(keys.pin, 'Caro', 'bar').token);
+  assert.ok(auth.checkPin(keys.pin, 'bar').ok);
 });
 
 test('veinte ingresos fallidos en diez minutos avisan una sola vez por ventana, con cuántos y desde cuántas direcciones', () => {
@@ -49,21 +49,19 @@ test('veinte ingresos fallidos en diez minutos avisan una sola vez por ventana, 
   assert.deepEqual(alarms[1], { kind: 'attempts', failures: 20, origins: 20, windowMinutes: 10 });
 });
 
-test('doscientos fallidos en una hora frenan los ingresos nuevos quince minutos, pero las sesiones abiertas siguen', () => {
+test('doscientos fallidos en una hora frenan los ingresos nuevos quince minutos', () => {
   let now = 0;
   const alarms = [];
   const auth = createAuth({ ...keys, now: () => now, notify: (alarm) => alarms.push(alarm) });
-  const open = auth.login(keys.pin, 'Caro', 'celular-de-caro');
   for (let origin = 0; origin < 100; origin++) {
     fail(auth, `10.1.0.${origin}`, 2);
     now += 30 * 1000;
   }
   assert.deepEqual(alarms.at(-1), { kind: 'frozen', failures: 200, origins: 100, windowMinutes: 60, frozenMinutes: 15 });
   assert.equal(alarms.filter((alarm) => alarm.kind === 'frozen').length, 1);
-  assert.equal(auth.login(keys.pin, 'Marta', 'celular-de-marta').error, 'LOCKED');
-  assert.equal(auth.verify(open.token).name, 'Caro');
+  assert.equal(auth.checkPin(keys.pin, 'celular-de-marta').error, 'LOCKED');
   now += minutes(15);
-  assert.ok(auth.login(keys.pin, 'Marta', 'celular-de-marta').token);
+  assert.ok(auth.checkPin(keys.pin, 'celular-de-marta').ok);
 });
 
 test('bloqueado o frenado, el PIN correcto y uno mal reciben la misma respuesta y no cuentan', () => {
@@ -71,7 +69,7 @@ test('bloqueado o frenado, el PIN correcto y uno mal reciben la misma respuesta 
   const alarms = [];
   const auth = createAuth({ ...keys, now: () => now, notify: (alarm) => alarms.push(alarm), alertFailures: 6 });
   fail(auth, 'bar', 5);
-  assert.deepEqual(auth.login(keys.pin, 'Caro', 'bar'), auth.login('0000', 'Juan', 'bar'));
-  for (let attempt = 0; attempt < 20; attempt++) auth.login('0000', 'Juan', 'bar');
+  assert.deepEqual(auth.checkPin(keys.pin, 'bar'), auth.checkPin('0000', 'bar'));
+  for (let attempt = 0; attempt < 20; attempt++) auth.checkPin('0000', 'bar');
   assert.equal(alarms.length, 0);
 });

@@ -43,3 +43,16 @@ test('HOST vacío deja escuchar en todas las interfaces', () => {
   assert.equal(readConfig({}).host, '');
   assert.equal(readConfig({ HOST: '127.0.0.1' }).host, '127.0.0.1');
 });
+
+test('el turno dura 12 h salvo un entero de 1 a 16, y los respaldos del ingreso vienen prendidos', () => {
+  assert.equal(readConfig({}).staffSessionHours, 12);
+  assert.equal(readConfig({ STAFF_SESSION_HOURS: '99' }).staffSessionHours, 12);
+  for (const value of ['0', '17', '8.5', 'ocho', '-3']) assert.equal(readConfig({ STAFF_SESSION_HOURS: value }).staffSessionHours, 12, value);
+  assert.equal(readConfig({ STAFF_SESSION_HOURS: '1' }).staffSessionHours, 1);
+  assert.equal(readConfig({ STAFF_SESSION_HOURS: '16' }).staffSessionHours, 16);
+  assert.equal(readConfig({}).staffGroupApproval, true);
+  assert.equal(readConfig({}).staffEmergencyLogin, true);
+  assert.equal(readConfig({ STAFF_GROUP_APPROVAL: 'false', STAFF_EMERGENCY_LOGIN: 'false' }).staffGroupApproval, false);
+  assert.equal(readConfig({ STAFF_EMERGENCY_LOGIN: 'false' }).staffEmergencyLogin, false);
+  assert.equal(readConfig({ STAFF_EMERGENCY_LOGIN: 'no' }).staffEmergencyLogin, true);
+});
