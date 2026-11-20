@@ -65,22 +65,25 @@ La moza cierra su propio ingreso. Lleva `Authorization: Bearer <token>`, sin cue
 
 La usa `moza.html` al tocar «Confirmar y enviar a Telegram». Lleva `Authorization: Bearer <token>`.
 
-- Pide `{ "code": "v1.7.no1x2-pe0x1", "force": false }`. El servidor valoriza el código con `web/menu.js`.
+- Pide `{ "code": "v2.k3m5q2x7a4b6c3d5e2f7.7.no1x2-pe0x1", "force": false }`. El servidor valoriza el código con `web/menu.js`.
+- El código es `v2.<nonce>.<mesa>.<líneas>`: `nonce` son 20 caracteres de `a-z` y `2-7` que arma el celular del cliente al azar (100 bits), `mesa` va de 0 (barra) a la última mesa y `líneas` son hasta 16 `<producto>x<cantidad>` separadas por `-`. El nonce cambia cada vez que el cliente toca el carrito o recarga la carta.
 - `201 { "number": 23, "totalCents": 4700000, "telegram": "sent" }`. `telegram` es `sent`, `unbound` (no hay grupo de salón) o `failed` (Telegram no respondió ni con los reintentos); en los tres casos el pedido quedó registrado. Durante un corte de red la respuesta puede tardar unos segundos más.
-- `409 ORDER_ALREADY_SENT` con `number`, si el mismo código se confirmó hace menos de 10 minutos. Con `"force": true` entra como otro pedido.
+- `409 { "error": "ORDER_ALREADY_SENT", "number": 12, "reason": "same_code" }` si ese nonce ya se confirmó alguna vez, en cualquier noche y aunque el pedido se haya anulado. `"force": true` no cambia nada: un código confirmado no se confirma nunca más.
+- `409 { "error": "ORDER_ALREADY_SENT", "number": 12, "reason": "similar" }` si otro código con la misma mesa y las mismas líneas se confirmó hace menos de 10 minutos y no está anulado. Con `"force": true` entra como otro pedido.
+- `422 ORDER_CODE_OLD` si el código es de la versión vieja (`v1.…`): no se confirma, el cliente recarga la carta.
 - `401 SESSION_INVALID` (token vencido, cerrado o desconocido), `422 ORDER_CODE_INVALID`, `422 PRODUCT_UNKNOWN`, `422 TABLE_UNKNOWN`, `503 NOT_CONFIGURED`.
-- `429 RATE_LIMITED` al pasar 30 pedidos por minuto desde el mismo ingreso, o al mandar con `"force": true` el mismo código más de 3 veces en 10 minutos (sumando todos los ingresos). El pedido no queda registrado.
+- `429 RATE_LIMITED` al pasar 30 pedidos por minuto desde el mismo ingreso, o al mandar con `"force": true` la misma mesa con las mismas líneas más de 3 veces en 10 minutos (sumando todos los ingresos). El pedido no queda registrado.
 
-## `GET /api/orders/status?code=<código v1>&since=<ISO opcional>`
+## `GET /api/orders/status?code=<código v2>`
 
 La usa la carta (`web/app.js`) mientras muestra el código y después, para seguir el pedido. Sin ingreso.
 
-- Busca en la noche actual el pedido más reciente con ese código exacto y, si viene `since`, con `confirmedAt >= since`. Un `since` que no es una fecha se ignora.
-- Siempre `200`. Sin pedido: `{ "state": "waiting", "at": "2026-11-15T01:10:00.000Z" }`. Con pedido: `{ "state": "received", "number": 23, "at": "…" }`.
-- `state`: `received` (confirmado y sin cocina, solo bebidas), `cooking` (tiene cocina y falta alguna), `ready` (todas las cocinas avisaron «Listo») o `voided` (anulado). Cobrar no cambia el estado.
-- `at` es la hora del servidor en UTC. La carta toma la primera como `since`, así un pedido igual confirmado antes no se confunde con el nuevo.
+- Busca, en todas las noches, el pedido confirmado con ese nonce, y solo lo da por encontrado si el código guardado es idéntico al recibido. Si no coincide entero, responde `waiting`. Un `since` que llegue se acepta y no se usa.
+- `200 { "state": "waiting", "at": "2026-11-15T01:10:00.000Z" }` sin pedido. Con pedido: `{ "state": "received", "number": 23, "at": "…" }`.
+- `state`: `waiting`, `received` (confirmado y sin cocina, solo bebidas), `cooking` (tiene cocina y falta alguna), `ready` (todas las cocinas avisaron «Listo»), `voided` (anulado) o `unknown` (código `v1.…`, que ya no se sigue: la carta deja de preguntar). Cobrar no cambia el estado.
+- `at` es la hora del servidor en UTC.
 - No devuelve líneas, totales ni nombres de personas.
-- `422 ORDER_CODE_INVALID` si el código no cumple el patrón, `429 RATE_LIMITED` al pasar 30 consultas por minuto del mismo código desde el mismo origen (un celular pregunta 12) o 1.200 por minuto desde el mismo origen sumando todos los códigos (30 mesas con 3 celulares cada una preguntan unas 1.080).
+- `422 ORDER_CODE_INVALID` si el código no cumple el patrón. `429 RATE_LIMITED` al pasar 20 consultas por minuto del mismo nonce (un celular pregunta 12), 1.200 por minuto desde el mismo origen (todos los celulares del bar salen por la misma IP: 30 mesas con 3 celulares preguntan unas 1.080) o 3.000 por minuto en total sumando todos los orígenes.
 
 ## `POST /api/suggestions`
 
@@ -100,4 +103,4 @@ La usa la carta (`web/app.js`) en «O contanos con tus palabras», debajo de «�
 
 ## Registro (`data/events.jsonl`)
 
-Una línea por evento, con `sequence`, `at` (UTC) y `type`: `chat_bound`, `order_confirmed`, `message_linked`, `kitchen_ready`, `order_charged`, `charge_reverted`, `order_voided`, `night_closed`, `staff_session_started`, `staff_session_ended` (`reason`: `revoked`, `replaced`, `logout` o `unclaimed`), `staff_sessions_ended_all`, `staff_login_denied` (`reason`: `not_me` o `group`), `staff_login_emergency` y `login_unlocked`. `order_confirmed` lleva `sessionId` del ingreso que lo confirmó. `staff_session_started` guarda `tokenHash`, nunca el token ni el `claimSecret`. `night_closed` cierra, al reconstruir el estado, todos los ingresos abiertos antes que él. El id de un pedido es `<noche>-<número>`; la numeración vuelve a 1 con cada noche.
+Una línea por evento, con `sequence`, `at` (UTC) y `type`: `chat_bound`, `order_confirmed`, `message_linked`, `kitchen_ready`, `order_charged`, `charge_reverted`, `order_voided`, `night_closed`, `staff_session_started`, `staff_session_ended` (`reason`: `revoked`, `replaced`, `logout` o `unclaimed`), `staff_sessions_ended_all`, `staff_login_denied` (`reason`: `not_me` o `group`), `staff_login_emergency` y `login_unlocked`. `order_confirmed` lleva `sessionId` del ingreso que lo confirmó y `nonce`, el del código v2; el servidor no acepta dos veces el mismo nonce. `staff_session_started` guarda `tokenHash`, nunca el token ni el `claimSecret`. `night_closed` cierra, al reconstruir el estado, todos los ingresos abiertos antes que él. El id de un pedido es `<noche>-<número>`; la numeración vuelve a 1 con cada noche.
