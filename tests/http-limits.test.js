@@ -171,3 +171,13 @@ test('rutas inventadas de la API comparten un solo tope por origen', async (t) =
   for (let hit = 0; hit < 3; hit++) assert.equal((await bar.call(`/api/nada-${hit}`, { method: 'POST' })).status, 404);
   assert.equal((await bar.call('/api/nada-9', { method: 'POST' })).status, 429);
 });
+
+test('con el tope de pedidos de una dirección lleno de tokens falsos, la moza con ingreso válido desde el mismo wifi sigue confirmando', async (t) => {
+  const bar = await open({ limits: { apiPerOrigin: 3 } });
+  t.after(bar.close);
+  const token = await bar.signIn('Caro');
+  for (let hit = 0; hit < 3; hit++) assert.equal((await bar.call('/api/orders', { method: 'POST', token: 'falso', body: { code: v2(9, '5.no0x1') } })).status, 401);
+  assert.equal((await bar.call('/api/orders', { method: 'POST', token: 'falso', body: { code: v2(9, '5.no0x1') } })).status, 429);
+  assert.equal((await bar.call('/api/orders', { method: 'POST', token, body: { code: v2(5, '5.no0x1') } })).status, 201);
+  assert.equal((await bar.call('/api/orders', { method: 'POST', token, body: { code: v2(6, '6.no0x1') } })).status, 201);
+});

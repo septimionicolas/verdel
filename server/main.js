@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { VENUE, buildOptionIndex } from '../web/menu.js';
 import { createAdvisor } from './advisor.js';
 import { createAuth } from './auth.js';
+import { createBindGuard } from './bind-guard.js';
 import { createBot } from './bot.js';
 import { readConfig, settingsState } from './config.js';
 import { createAppServer, createHttpHandler } from './http.js';
@@ -34,7 +35,8 @@ const webDir = fileURLToPath(new URL('../web/', import.meta.url));
 const server = createAppServer(createHttpHandler({ service, staff, config, webDir, ready: settings.ready, suggester, log }));
 
 server.listen(config.port, config.host || undefined, () => log('listening', { port: config.port, host: config.host || 'todas', telegram: Boolean(telegram), stationBots: Object.keys(stationTelegrams), advisor: Boolean(advisor), missing: settings.missing, weak: settings.weak }));
-const listen = (client, roles) => pollUpdates(client, createBot({ service, telegram: client, venue: VENUE, setupKey: settings.setupKey, staff, roles }).handleUpdate, { signal: stopper.signal, log });
+const bindGuard = createBindGuard({ setupKey: settings.setupKey, notify: (alarm) => service.securityAlert(alarm), log });
+const listen = (client, roles) => pollUpdates(client, createBot({ service, telegram: client, venue: VENUE, setupKey: settings.setupKey, staff, roles, log, bindGuard }).handleUpdate, { signal: stopper.signal, log });
 if (telegram) listen(telegram, Object.keys(ROLE_NAMES).filter((role) => !stationTelegrams[role]));
 for (const [station, client] of Object.entries(stationTelegrams)) listen(client, [station]);
 

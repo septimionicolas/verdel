@@ -99,6 +99,7 @@ La usa la carta (`web/app.js`) en «O contanos con tus palabras», debajo de «�
 - La carta y el código del pedido: se arman en el celular del cliente (`web/order-code.js`).
 - «Listo», «Cobrado en caja», «Anular» y `/cierre`: son botones y comandos del bot (`server/bot.js`).
 - La confirmación del ingreso en Telegram (`/start in_<requestId>` en el chat privado con el bot, «Sí, soy yo» / «No fui yo»), la aprobación en el grupo ([Aprobar] / [Rechazar]), `/mozas` en salon u owner (lista los ingresos abiertos con [Cerrar] y [Cerrar todas]) y `/desbloquear` solo en owner (levanta el bloqueo del PIN).
+- `/vincular <grupo> <SETUP_KEY>`: tiene su propio freno (5 claves mal por hora por cuenta de Telegram, 20 sumando todas) y avisa al dueño; ver «Clave de `/vincular`» en `docs/decisiones.md`.
 - El párrafo que cuenta la noche en `/cierre`: lo pide el servidor al modelo con solo números agregados y nombres de productos, y lo manda por Telegram como mensaje aparte. No se guarda en el registro.
 
 ## Registro (`data/events.jsonl`)

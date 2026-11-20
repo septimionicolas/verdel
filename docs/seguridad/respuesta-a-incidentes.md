@@ -73,12 +73,13 @@ grep -E '"type":"(staff_[a-z_]*|login_unlocked)"' events.jsonl | tail -n 50
 El registro del servidor dice quién entró, lo que intentaron y no les salió:
 
 ```bash
-journalctl -u verdel --since "2026-11-20 00:00" | grep -E '"event":"(staff_login|staff_login_failed|staff_login_unclaimed|security_alert|telegram_[a-z_]*)"'
+journalctl -u verdel --since "2026-11-20 00:00" | grep -E '"event":"(staff_login|staff_login_failed|staff_login_unclaimed|bind_failed|security_alert|telegram_[a-z_]*)"'
 ```
 
 - `staff_login` es cada ingreso bueno, anotado cuando el navegador retira el token o entra por emergencia: el nombre que puso la moza (`name`) y la dirección (`origin`). Un nombre que no es de nadie, o un ingreso a la hora en que el bar estaba cerrado, es del intruso: desde ese `at` todo lo que firmó ese nombre es sospechoso.
 - `staff_login_unclaimed` es un ingreso aprobado (`method`: `telegram` o `group`) que el navegador nunca retiró antes de que venciera el pedido. Puede ser un pedido abandonado o alguien que aprobó el de otro; si se repite con el mismo `name`, preguntale a quien aprobó.
 - `staff_login_failed` es cada intento fallido, con `kind`: `pin` si el PIN no era, `key` si la clave de instalación del ingreso de emergencia no era (sin `name`: ese paso no lo pide), `locked` si llegó con los ingresos frenados. Se anotan hasta 60 por minuto, para que una ráfaga no llene el disco; los ingresos buenos se anotan siempre. Ninguna línea lleva el PIN ni el token.
+- `bind_failed` es cada `/vincular` con una clave mal (`reason: key`) o con el freno puesto (`reason: locked`): el chat (`chatId`), la cuenta de Telegram que lo mandó (`fromId`) y el grupo que pidió (`role`), nunca la clave. Muchas desde una cuenta que no es de nadie del bar son alguien probando la `SETUP_KEY`: cambiala.
 - `security_alert` lleva los ingresos fallidos, desde cuántas direcciones y si se frenaron los ingresos nuevos. Guardá una copia de `events.jsonl` y de esa salida antes de tocar nada más, con la fecha en el nombre, fuera del servidor.
 
 ## Cuando alguien deja de trabajar con el bar
