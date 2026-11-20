@@ -5,6 +5,16 @@ import { cleanSuggestionText } from './suggestions.js';
 
 const CONTENT_TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.json': 'application/json; charset=utf-8' };
 const MAX_BODY_BYTES = 4096;
+const PAGE_POLICY = "default-src 'none'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'";
+const RESOURCE_POLICY = "default-src 'none'; frame-ancestors 'none'";
+const SECURITY_HEADERS = {
+  'x-content-type-options': 'nosniff',
+  'referrer-policy': 'no-referrer',
+  'strict-transport-security': 'max-age=31536000; includeSubDomains',
+  'x-frame-options': 'DENY',
+  'cross-origin-opener-policy': 'same-origin',
+  'permissions-policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
+};
 const ERROR_STATUS = { ORDER_ALREADY_SENT: 409, ORDER_CODE_INVALID: 422, PRODUCT_UNKNOWN: 422, TABLE_UNKNOWN: 422 };
 
 async function readJson(request) {
@@ -26,7 +36,9 @@ export function createHttpHandler({ service, auth, config, webDir, ready, sugges
 
   function send(response, status, body, headers = {}) {
     const payload = typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body);
-    response.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer', ...headers });
+    const merged = { 'content-type': 'application/json; charset=utf-8', ...headers };
+    const policy = merged['content-type'].startsWith('text/html') ? PAGE_POLICY : RESOURCE_POLICY;
+    response.writeHead(status, { ...merged, ...SECURITY_HEADERS, 'content-security-policy': policy });
     response.end(payload);
   }
 

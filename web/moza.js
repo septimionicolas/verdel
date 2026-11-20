@@ -72,7 +72,7 @@ function paintLogin(order, message = '') {
 
 function paintConfirm(order, message = '', force = false) {
   const session = readSession();
-  content.innerHTML = `${orderCard(order)}<button class="button" id="send" type="button">${force ? 'Enviar de nuevo igual' : 'Confirmar y enviar a Telegram'}</button>${message}<p class="staff-note" style="margin-top:14px">Ingresaste como ${escapeHtml(session.name)}.</p>`;
+  content.innerHTML = `${orderCard(order)}<button class="button" id="send" type="button">${force ? 'Enviar de nuevo igual' : 'Confirmar y enviar a Telegram'}</button>${message}<p class="staff-note staff-note-after">Ingresaste como ${escapeHtml(session.name)}.</p>`;
   document.querySelector('#send').addEventListener('click', async (event) => {
     event.target.disabled = true;
     try {

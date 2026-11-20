@@ -1,6 +1,6 @@
 # Contrato de la API
 
-Prefijo `/api`. JSON en UTF-8. La plata va en centavos enteros. Los errores devuelven `{ "error": "CODIGO" }`.
+Prefijo `/api`. JSON en UTF-8. La plata va en centavos enteros. Los errores devuelven `{ "error": "CODIGO" }`. Toda respuesta, también los errores y los archivos de la carta, lleva las cabeceras de seguridad de D21 en `docs/decisiones.md`; las de la API, `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`.
 
 ## `GET /api/health`
 
