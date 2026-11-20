@@ -58,13 +58,15 @@ grep -E '"type":"(order_charged|charge_reverted|order_voided)"' events.jsonl | t
 - `order_confirmed` trae el nombre que puso la moza (`staff`), la mesa y el código. Un nombre que no es de nadie, o pedidos a la hora en que el bar estaba cerrado, son del intruso.
 - `by` en cobros y anulaciones dice quién tocó el botón en Telegram.
 
-El registro del servidor dice lo que intentaron y no les salió:
+El registro del servidor dice quién entró, lo que intentaron y no les salió:
 
 ```bash
-journalctl -u verdel --since "2026-11-20 00:00" | grep -E '"event":"(security_alert|telegram_[a-z_]*)"'
+journalctl -u verdel --since "2026-11-20 00:00" | grep -E '"event":"(staff_login|staff_login_failed|security_alert|telegram_[a-z_]*)"'
 ```
 
-`security_alert` lleva los ingresos fallidos, desde cuántas direcciones y si se frenaron los ingresos nuevos. Guardá una copia de `events.jsonl` y de esa salida antes de tocar nada más, con la fecha en el nombre, fuera del servidor.
+- `staff_login` es cada ingreso bueno: el nombre que puso la moza (`name`) y la dirección (`origin`). Un nombre que no es de nadie, o un ingreso a la hora en que el bar estaba cerrado, es del intruso: desde ese `at` todo lo que firmó ese nombre es sospechoso.
+- `staff_login_failed` es cada intento fallido, con `kind`: `pin` si el PIN no era, `locked` si llegó con los ingresos frenados. Se anotan hasta 60 por minuto, para que una ráfaga no llene el disco; los ingresos buenos se anotan siempre. Ninguna línea lleva el PIN ni el token.
+- `security_alert` lleva los ingresos fallidos, desde cuántas direcciones y si se frenaron los ingresos nuevos. Guardá una copia de `events.jsonl` y de esa salida antes de tocar nada más, con la fecha en el nombre, fuera del servidor.
 
 ## Cuando alguien deja de trabajar con el bar
 

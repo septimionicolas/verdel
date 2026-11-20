@@ -39,6 +39,7 @@ export const HTTP_LIMITS = {
   ordersPerSession: 30,
   forcePerCode: 3,
   forceWindowMs: 10 * 60 * 1000,
+  failedLoginLogsPerMinute: 60,
   maxKeys: 10000,
 };
 
@@ -48,7 +49,7 @@ export function createAppServer(handler) {
   return Object.assign(createServer(handler), SERVER_TIMEOUTS);
 }
 
-export function createHttpHandler({ service, auth, config, webDir, ready, suggester = null, now = Date.now, limits = {} }) {
+export function createHttpHandler({ service, auth, config, webDir, ready, suggester = null, now = Date.now, limits = {}, log = () => {} }) {
   const root = resolve(webDir);
   const servedConfig = `export const CONFIG = {\n  apiBase: '',\n  showCurrencySign: false,\n  suggestions: ${Boolean(suggester)},\n  allowedQrOrigins: ${JSON.stringify(config.allowedOrigins)},\n};\n`;
   const caps = { ...HTTP_LIMITS, ...limits };
@@ -60,6 +61,7 @@ export function createHttpHandler({ service, auth, config, webDir, ready, sugges
   const suggestionLimiter = limiter(caps.suggestionsPerOrigin);
   const orderLimiter = limiter(caps.ordersPerSession);
   const forceLimiter = limiter(caps.forcePerCode, caps.forceWindowMs);
+  const failedLoginLog = limiter(caps.failedLoginLogsPerMinute);
   const limited = (response, headers) => send(response, 429, { error: 'RATE_LIMITED' }, { ...headers, 'cache-control': 'no-store' });
 
   function send(response, status, body, headers = {}) {
@@ -133,7 +135,11 @@ export function createHttpHandler({ service, auth, config, webDir, ready, sugges
         const name = String(body.name || '').trim().slice(0, 24);
         if (!name) return send(response, 422, { error: 'NAME_REQUIRED' }, cors);
         const result = auth.login(String(body.pin || ''), name, origin);
-        if (result.error) return send(response, result.error === 'LOCKED' ? 429 : 401, { error: result.error }, cors);
+        if (result.error) {
+          if (failedLoginLog.take('all')) log('staff_login_failed', { name, origin, kind: result.error === 'LOCKED' ? 'locked' : 'pin' });
+          return send(response, result.error === 'LOCKED' ? 429 : 401, { error: result.error }, cors);
+        }
+        log('staff_login', { name, origin });
         return send(response, 201, result, cors);
       }
 
