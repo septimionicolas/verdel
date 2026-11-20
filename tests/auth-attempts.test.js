@@ -38,3 +38,21 @@ test('una inundación de orígenes frena los ingresos un rato y después la moza
   now += 15 * 60 * 1000;
   assert.ok(auth.login('birra-fria-26', 'Caro', 'celular-de-caro').token);
 });
+
+test('cuando vence el freno general, un fallido más no lo vuelve a poner y la moza entra', () => {
+  let now = 0;
+  const alarms = [];
+  const auth = createAuth({ ...keys, now: () => now, notify: (alarm) => alarms.push(alarm.kind) });
+  for (let index = 0; index < 200; index++) auth.login('0000', 'Juan', `10.0.${index >> 8}.${index & 255}`);
+  assert.equal(auth.login(keys.pin, 'Caro', 'celular-de-caro').error, 'LOCKED');
+  now += 15 * 60 * 1000;
+  assert.equal(auth.login('0000', 'Juan', '10.9.9.9').error, 'PIN_INVALID');
+  assert.ok(auth.login(keys.pin, 'Caro', 'celular-de-caro').token);
+  assert.equal(alarms.filter((kind) => kind === 'frozen').length, 1);
+});
+
+test('muchos fallidos desde pocas direcciones no frenan a todo el bar', () => {
+  const auth = createAuth({ ...keys, now: () => 0, maxAttempts: 1000 });
+  for (let index = 0; index < 300; index++) auth.login('0000', 'Juan', `10.0.0.${index % 5}`);
+  assert.ok(auth.login(keys.pin, 'Caro', 'celular-de-caro').token);
+});

@@ -19,7 +19,7 @@ La usa `moza.html` la primera vez en cada celular.
 - Pide `{ "name": "Caro", "pin": "…" }`.
 - `201 { "token": "…", "name": "Caro" }`.
 - `401 PIN_INVALID`, `422 NAME_REQUIRED`, `429 LOCKED`, `503 NOT_CONFIGURED`.
-- `429 LOCKED` sale tras 5 PIN mal desde el mismo origen (5 minutos, el doble en cada bloqueo seguido, hasta 1 hora) o durante el freno general (15 minutos tras 200 fallidos en 1 hora entre todos los orígenes). Es la misma respuesta en los dos casos y para cualquier celular detrás de esa dirección; mientras dura, el PIN no se prueba. Los ingresos ya dados siguen andando (D23 en `docs/decisiones.md`).
+- `429 LOCKED` sale tras 5 PIN mal desde el mismo origen (5 minutos, el doble en cada bloqueo seguido, hasta 1 hora) o durante el freno general (15 minutos tras 200 fallidos en 1 hora desde 20 orígenes o más; al vencer, la cuenta empieza de cero). Es la misma respuesta en los dos casos y para cualquier celular detrás de esa dirección; mientras dura, el PIN no se prueba. Los ingresos ya dados siguen andando (D23 en `docs/decisiones.md`).
 - `401 PIN_INVALID` es igual para un PIN mal con cualquier nombre: la respuesta no dice si falló el nombre, la clave o un bloqueo ajeno.
 
 ## `POST /api/orders`

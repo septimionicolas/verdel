@@ -109,7 +109,7 @@ test('los topes generales de fábrica alcanzan para que treinta mesas abran la c
 });
 
 test('ninguna respuesta del ingreso dice si falló el nombre, la clave o un bloqueo ajeno', async (t) => {
-  const bar = await open({ authOptions: { freezeFailures: 12 } });
+  const bar = await open({ authOptions: { freezeFailures: 12, freezeOrigins: 12 } });
   t.after(bar.close);
   const wrong = [await bar.login('Caro', '0000', '10.0.0.1'), await bar.login('Nadie Conocido', 'birra-fria-25', '10.0.0.2')];
   assert.deepEqual(wrong[0], wrong[1]);
