@@ -1,5 +1,9 @@
 node_modules/
 data/
 .env
+.env.*
+!.env.example
+respaldos/
+respaldo-*.tar.gz
 *.log
 .DS_Store

@@ -1,18 +1,26 @@
 # Contrato de la API
 
-Prefijo `/api`. JSON en UTF-8. La plata va en centavos enteros. Los errores devuelven `{ "error": "CODIGO" }`.
+Prefijo `/api`. JSON en UTF-8. La plata va en centavos enteros. Los errores devuelven `{ "error": "CODIGO" }`. Toda respuesta, también los errores y los archivos de la carta, lleva las cabeceras de seguridad de D21 en `docs/decisiones.md`; las de la API, `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`.
+
+Tope general por origen: 2.000 pedidos por minuto a cada ruta de `/api/` (las rutas que no existen comparten uno) y otros 2.000 a los archivos de la carta. Pasado el tope, `429 RATE_LIMITED` con `Cache-Control: no-store` en esa ruta; las otras siguen. `POST /api/orders` con un ingreso válido no cuenta para este tope: lo frena solo el tope por ingreso, así un celular que inunda la API desde el wifi del bar no deja a las mozas sin confirmar. Todos los celulares del bar salen por la misma dirección del wifi: los topes por origen están medidos para el bar lleno, no para un celular.
 
 ## `GET /api/health`
 
-Sin ingreso. `200 { ok, ready, telegram, advisor, bound, night, orders }`. `ready` es `false` si falta `STAFF_PIN`, `SETUP_KEY` o `SESSION_SECRET`; `advisor` es `true` si hay `ANTHROPIC_API_KEY` (el párrafo del cierre y, más adelante, las sugerencias en texto libre); `bound` lista los grupos vinculados.
+Sin ingreso. `200 { ok, ready }` y nada más: ni grupos vinculados, ni pedidos, ni si hay Telegram o modelo. `ready` es `false` si falta `STAFF_PIN`, `SETUP_KEY` o `SESSION_SECRET`, o si alguna es débil (ver «Claves» en `docs/decisiones.md`); en ese caso las rutas del salón responden `503 NOT_CONFIGURED`.
+
+## `GET /config.js`
+
+No es parte de `/api`, pero la sirve el servidor en lugar de `web/config.js`: `apiBase: ''`, `showCurrencySign`, `suggestions` (`true` si hay `ANTHROPIC_API_KEY`) y `allowedQrOrigins` (los orígenes de `ALLOWED_ORIGINS`, que `mesas.html?base=` acepta además del propio).
 
 ## `POST /api/staff/sessions`
 
-La usa `moza.html` la primera vez en cada celular.
+La usa `moza.html` la primera vez en cada celular. El campo del PIN acepta letras y números sin largo máximo, igual que `STAFF_PIN`: un teclado numérico o un tope de caracteres dejaría afuera a un PIN válido.
 
 - Pide `{ "name": "Caro", "pin": "…" }`.
 - `201 { "token": "…", "name": "Caro" }`.
-- `401 PIN_INVALID`, `422 NAME_REQUIRED`, `429 LOCKED` (5 PIN mal desde el mismo origen).
+- `401 PIN_INVALID`, `422 NAME_REQUIRED`, `429 LOCKED`, `503 NOT_CONFIGURED`.
+- `429 LOCKED` sale tras 5 PIN mal desde el mismo origen (5 minutos, el doble en cada bloqueo seguido, hasta 1 hora) o durante el freno general (15 minutos tras 200 fallidos en 1 hora desde 20 orígenes o más; al vencer, la cuenta empieza de cero). Es la misma respuesta en los dos casos y para cualquier celular detrás de esa dirección; mientras dura, el PIN no se prueba. Los ingresos ya dados siguen andando (D23 en `docs/decisiones.md`).
+- `401 PIN_INVALID` es igual para un PIN mal con cualquier nombre: la respuesta no dice si falló el nombre, la clave o un bloqueo ajeno.
 
 ## `POST /api/orders`
 
@@ -22,6 +30,7 @@ La usa `moza.html` al tocar «Confirmar y enviar a Telegram». Lleva `Authorizat
 - `201 { "number": 23, "totalCents": 4700000, "telegram": "sent" }`. `telegram` es `sent`, `unbound` (no hay grupo de salón) o `failed` (Telegram no respondió ni con los reintentos); en los tres casos el pedido quedó registrado. Durante un corte de red la respuesta puede tardar unos segundos más.
 - `409 ORDER_ALREADY_SENT` con `number`, si el mismo código se confirmó hace menos de 10 minutos. Con `"force": true` entra como otro pedido.
 - `401 SESSION_INVALID`, `422 ORDER_CODE_INVALID`, `422 PRODUCT_UNKNOWN`, `422 TABLE_UNKNOWN`, `503 NOT_CONFIGURED`.
+- `429 RATE_LIMITED` al pasar 30 pedidos por minuto desde el mismo ingreso, o al mandar con `"force": true` el mismo código más de 3 veces en 10 minutos (sumando todos los ingresos). El pedido no queda registrado.
 
 ## `GET /api/orders/status?code=<código v1>&since=<ISO opcional>`
 
@@ -32,21 +41,22 @@ La usa la carta (`web/app.js`) mientras muestra el código y después, para segu
 - `state`: `received` (confirmado y sin cocina, solo bebidas), `cooking` (tiene cocina y falta alguna), `ready` (todas las cocinas avisaron «Listo») o `voided` (anulado). Cobrar no cambia el estado.
 - `at` es la hora del servidor en UTC. La carta toma la primera como `since`, así un pedido igual confirmado antes no se confunde con el nuevo.
 - No devuelve líneas, totales ni nombres de personas.
-- `422 ORDER_CODE_INVALID` si el código no cumple el patrón, `429 RATE_LIMITED` al pasar 40 consultas por minuto desde el mismo origen.
+- `422 ORDER_CODE_INVALID` si el código no cumple el patrón, `429 RATE_LIMITED` al pasar 30 consultas por minuto del mismo código desde el mismo origen (un celular pregunta 12) o 1.200 por minuto desde el mismo origen sumando todos los códigos (30 mesas con 3 celulares cada una preguntan unas 1.080).
 
 ## `POST /api/suggestions`
 
-La usa la carta (`web/app.js`) en «O contanos con tus palabras», debajo de «¿Qué tomamos?». Sin ingreso. La carta muestra el campo solo si `/api/health` dice `advisor: true`.
+La usa la carta (`web/app.js`) en «O contanos con tus palabras», debajo de «¿Qué tomamos?». Sin ingreso. La carta muestra el campo solo si su `config.js` dice `suggestions: true`: el servidor la sirve así cuando hay `ANTHROPIC_API_KEY`.
 
-- Pide `{ "text": "somos 5, uno no toma, 40 lucas" }`: de 1 a 200 caracteres después de recortar espacios.
+- Pide `{ "text": "somos 5, uno no toma, 40 lucas", "table": 7 }`: `text` de 1 a 200 caracteres después de recortar espacios; `table` es la mesa de la carta (0 es la barra, hasta `VENUE.tableCount`), o `null` o ausente si el cliente todavía no la eligió.
 - `200 { "phrase": "Dos Norte de 2 litros y una gaseosa para el que no toma.", "lines": [{ "key": "no1", "quantity": 2 }, { "key": "ga1", "quantity": 1 }] }`. Cada `key` existe en la carta, `quantity` es un entero de 1 a 9, hay de 1 a 8 líneas y `phrase` es texto plano de hasta 160 caracteres. No trae precios: el total lo calcula la carta con `web/menu.js`.
-- `422 TEXT_REQUIRED` (vacío o de más de 200 caracteres), `429 RATE_LIMITED` (más de 5 por minuto desde el mismo origen, o se llegó a `ADVISOR_NIGHT_LIMIT` en la noche, sumando todas las mesas), `503 ADVISOR_OFF` (no hay `ANTHROPIC_API_KEY`), `502 ADVISOR_FAILED` (el modelo no respondió algo válido o tardó más de 6 s).
+- `422 TEXT_REQUIRED` (vacío o de más de 200 caracteres), `422 TABLE_UNKNOWN` (`table` no es un entero de 0 a `VENUE.tableCount`), `429 RATE_LIMITED` (más de 3 por minuto desde la misma mesa y origen, más de 60 por minuto desde el mismo origen, la mesa ya usó su parte de la noche, un décimo de `ADVISOR_NIGHT_LIMIT`, o se llegó a `ADVISOR_NIGHT_LIMIT` sumando todas las mesas; los clientes sin mesa comparten una sola parte), `503 ADVISOR_OFF` (no hay `ANTHROPIC_API_KEY`), `502 ADVISOR_FAILED` (el modelo no respondió algo válido o tardó más de 6 s).
 - El texto del cliente no se guarda ni en el log ni en `events.jsonl`; el log lleva solo conteos.
 
 ## Lo que no pasa por la API
 
 - La carta y el código del pedido: se arman en el celular del cliente (`web/order-code.js`).
 - «Listo», «Cobrado en caja», «Anular» y `/cierre`: son botones y comandos del bot (`server/bot.js`).
+- `/vincular <grupo> <SETUP_KEY>`: tiene su propio freno (5 claves mal por hora por cuenta de Telegram, 20 sumando todas) y avisa al dueño; ver «Clave de `/vincular`» en `docs/decisiones.md`.
 - El párrafo que cuenta la noche en `/cierre`: lo pide el servidor al modelo con solo números agregados y nombres de productos, y lo manda por Telegram como mensaje aparte. No se guarda en el registro.
 
 ## Registro (`data/events.jsonl`)

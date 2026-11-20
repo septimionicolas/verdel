@@ -21,9 +21,9 @@ const main = connect('MAIN');
 const stationTelegrams = { pizzas: connect('PIZZAS'), house: connect('HOUSE') };
 const service = createService({ store: memoryEventStore(), telegram: main, stationTelegrams, optionIndex: buildOptionIndex(), venue: VENUE });
 const bots = {
-  main: createBot({ service, telegram: main, venue: VENUE, setupKey: 'clave', roles: ['salon', 'owner'] }),
-  pizzas: createBot({ service, telegram: stationTelegrams.pizzas, venue: VENUE, setupKey: 'clave', roles: ['pizzas'] }),
-  house: createBot({ service, telegram: stationTelegrams.house, venue: VENUE, setupKey: 'clave', roles: ['house'] }),
+  main: createBot({ service, telegram: main, venue: VENUE, setupKey: 'clave-de-vincular-2026', roles: ['salon', 'owner'] }),
+  pizzas: createBot({ service, telegram: stationTelegrams.pizzas, venue: VENUE, setupKey: 'clave-de-vincular-2026', roles: ['pizzas'] }),
+  house: createBot({ service, telegram: stationTelegrams.house, venue: VENUE, setupKey: 'clave-de-vincular-2026', roles: ['house'] }),
 };
 
 const command = (bot, chat, text) => bots[bot].handleUpdate({ message: { text, chat: { id: chat, title: `Grupo ${chat}` }, message_id: 1, from: { first_name: 'Septi' } } });
@@ -32,16 +32,16 @@ const lastTo = (bot, chat) => calls.filter((call) => call.bot === bot && call.me
 const lastAnswer = (bot) => calls.filter((call) => call.bot === bot && call.method === 'answerCallbackQuery').at(-1).params.text;
 
 test('cada cocina se vincula solo con su bot, y el bot del salón no vincula cocinas', async () => {
-  await command('main', CHATS.pizzas, '/vincular pizzas clave');
+  await command('main', CHATS.pizzas, '/vincular pizzas clave-de-vincular-2026');
   assert.match(lastTo('MAIN', CHATS.pizzas), /su propio bot/);
-  await command('house', CHATS.salon, '/vincular salon clave');
+  await command('house', CHATS.salon, '/vincular salon clave-de-vincular-2026');
   assert.match(lastTo('HOUSE', CHATS.salon), /solo para Cocina de Verdel/);
   assert.deepEqual(service.state.bindings, {});
 
-  await command('main', CHATS.salon, '/vincular salon clave');
-  await command('main', CHATS.owner, '/vincular dueno clave');
-  await command('pizzas', CHATS.pizzas, '/vincular pizzas clave');
-  await command('house', CHATS.house, '/vincular cocina clave');
+  await command('main', CHATS.salon, '/vincular salon clave-de-vincular-2026');
+  await command('main', CHATS.owner, '/vincular dueno clave-de-vincular-2026');
+  await command('pizzas', CHATS.pizzas, '/vincular pizzas clave-de-vincular-2026');
+  await command('house', CHATS.house, '/vincular cocina clave-de-vincular-2026');
   assert.deepEqual(Object.keys(service.state.bindings).sort(), ['house', 'owner', 'pizzas', 'salon']);
 });
 

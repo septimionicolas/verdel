@@ -37,7 +37,11 @@ body.has-order-bar .app{padding-bottom:104px}
 .brand.is-pouring .drip{animation:drip-down .9s ease-out 2.05s both}
 .foam{transform-origin:60px 40px}
 .drip{transform-origin:96px 40px}
-.bubble{animation:rise 3s linear infinite;animation-delay:var(--delay,0s)}
+.bubble{animation:rise 3s linear infinite}
+.bubble:nth-of-type(2){animation-delay:.8s}
+.bubble:nth-of-type(3){animation-delay:1.5s}
+.bubble:nth-of-type(4){animation-delay:2.1s}
+.bubble:nth-of-type(5){animation-delay:2.6s}
 @keyframes fill{from{transform:translateY(106px)}to{transform:none}}
 @keyframes froth{from{transform:scale(0)}to{transform:scale(1)}}
 @keyframes drip-down{from{transform:scaleY(0)}to{transform:scaleY(1)}}
@@ -172,6 +176,7 @@ body.has-order-bar .app{padding-bottom:104px}
 .staff{padding:28px 18px 32px}
 .staff h1{margin:22px 0 4px;font-family:var(--display);font-stretch:125%;font-weight:900;font-size:26px;line-height:1.1}
 .staff-note{margin:0 0 16px;color:var(--sage);font-size:15px;max-width:40ch}
+.staff-note-after{margin-top:14px}
 .card{background:var(--bottle-raised);border:1px solid var(--bottle-line);border-radius:20px;padding:16px;margin:0 0 16px}
 .card h2{margin:0 0 4px;font-size:22px;font-weight:850}
 .card .order-list{margin-top:8px}

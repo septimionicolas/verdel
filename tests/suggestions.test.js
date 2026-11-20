@@ -28,8 +28,8 @@ async function fakeAnthropic(url, init) {
 
 const service = createService({ store: memoryEventStore(() => new Date(nowMs)), telegram: null, optionIndex, venue: VENUE, now: () => nowMs });
 const advisor = createAdvisor({ apiKey: 'clave-de-prueba', apiBase: 'http://anthropic.test', model: 'claude-fable-5-2', fetchImpl: fakeAnthropic });
-const suggester = createSuggester({ advisor, optionIndex, nightLimit: 13, nightNumber: () => service.state.nights.at(-1).number, timeoutMs: 40, log: (event, detail) => logs.push({ event, ...detail }) });
-const auth = createAuth({ pin: '4321', secret: 'secreto' });
+const suggester = createSuggester({ advisor, optionIndex, nightLimit: 11, tableNightLimit: 11, nightNumber: () => service.state.nights.at(-1).number, timeoutMs: 40, log: (event, detail) => logs.push({ event, ...detail }) });
+const auth = createAuth({ pin: 'birra-fria-26', secret: 'firma-de-prueba-0123456789abcdef-larga' });
 const servers = {
   on: createServer(createHttpHandler({ service, auth, config, webDir, ready: true, advisor, suggester, now: () => nowMs })),
   off: createServer(createHttpHandler({ service, auth, config, webDir, ready: true, now: () => nowMs })),
@@ -49,9 +49,11 @@ before(async () => {
 });
 after(() => Object.values(servers).forEach((server) => server.close()));
 
-test('health dice si el asistente está prendido', async () => {
-  assert.equal((await (await fetch(`${bases.on}/api/health`)).json()).advisor, true);
-  assert.equal((await (await fetch(`${bases.off}/api/health`)).json()).advisor, false);
+test('la configuración servida dice si la ronda en texto libre está prendida, y health no cuenta nada más', async () => {
+  const served = async (which) => (await import(`data:text/javascript,${encodeURIComponent(await (await fetch(`${bases[which]}/config.js`)).text())}`)).CONFIG;
+  assert.equal((await served('on')).suggestions, true);
+  assert.equal((await served('off')).suggestions, false);
+  assert.deepEqual(await (await fetch(`${bases.on}/api/health`)).json(), { ok: true, ready: true });
 });
 
 test('una respuesta válida vuelve validada, sin precios y con el texto del cliente solo como mensaje del usuario', async () => {
@@ -101,10 +103,10 @@ test('un texto vacío o de más de 200 caracteres es TEXT_REQUIRED', async () =>
   assert.equal((await ask(123)).status, 422);
 });
 
-test('más de 5 por minuto desde el mismo origen es RATE_LIMITED', async () => {
+test('más de 3 por minuto desde la misma mesa es RATE_LIMITED', async () => {
   nowMs += 60 * 1000;
   answer = () => ({ phrase: 'Una Norte.', lines: [{ key: 'no0', quantity: 1 }] });
-  for (let index = 0; index < 5; index += 1) assert.equal((await ask('una birra')).status, 200);
+  for (let index = 0; index < 3; index += 1) assert.equal((await ask('una birra')).status, 200);
   assert.deepEqual(await ask('una birra'), { status: 429, body: { error: 'RATE_LIMITED' } });
 });
 

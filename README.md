@@ -10,7 +10,10 @@ Carta digital de la cervecería Verdel con pedido por QR.
 
 El sistema no cobra ni maneja plata: solo registra.
 
+Todo el estado vive en `DATA_DIR/events.jsonl`: en Railway va en un volumen, y en un servidor propio `deploy/install.sh` deja un respaldo diario. GitHub Pages publica solo la carta; las pantallas del personal las sirve el servidor.
+
 - Reglas del repo y cómo correrlo: [`AGENTS.md`](AGENTS.md)
-- Instalación paso a paso: [`docs/instalacion.md`](docs/instalacion.md)
+- Instalación paso a paso, con Railway, servidor propio, respaldo y restauración: [`docs/instalacion.md`](docs/instalacion.md)
+- Si se filtra una clave, alguien entró o alguien se va: [`docs/seguridad/respuesta-a-incidentes.md`](docs/seguridad/respuesta-a-incidentes.md)
 - Decisiones tomadas y valores de fábrica: [`docs/decisiones.md`](docs/decisiones.md)
 - Contrato de la API: [`docs/CONTRATO-API.md`](docs/CONTRATO-API.md)

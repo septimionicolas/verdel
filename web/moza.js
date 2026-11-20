@@ -6,7 +6,15 @@ const STORAGE_KEY = 'verdel-staff';
 const content = document.querySelector('#content');
 const escapeHtml = (text) => String(text).replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[char]);
 const optionIndex = buildOptionIndex();
-const code = decodeURIComponent(location.hash.slice(1));
+function readCode() {
+  try {
+    return decodeURIComponent(location.hash.slice(1));
+  } catch {
+    return undefined;
+  }
+}
+
+const code = readCode();
 
 function readSession() {
   try {
@@ -24,6 +32,7 @@ function writeSession(session) {
 }
 
 function readOrder() {
+  if (code === undefined) return undefined;
   if (!code) return null;
   try {
     return priceOrder(optionIndex, decodeOrder(code), VENUE.tableCount);
@@ -49,7 +58,7 @@ async function request(path, body, token) {
 }
 
 function paintLogin(order, message = '') {
-  content.innerHTML = `${orderCard(order)}<form id="login"><p class="staff-note">Es la primera vez en este celular. Poné tu nombre y el PIN del salón.</p><label class="field">Tu nombre<input id="staff-name" autocomplete="given-name" maxlength="24" required></label><label class="field">PIN del salón<input id="staff-pin" type="password" inputmode="numeric" autocomplete="off" maxlength="12" required></label><button class="button" type="submit">Ingresar</button>${message}</form>`;
+  content.innerHTML = `${orderCard(order)}<form id="login"><p class="staff-note">Es la primera vez en este celular. Poné tu nombre y el PIN del salón.</p><label class="field">Tu nombre<input id="staff-name" autocomplete="given-name" maxlength="24" required></label><label class="field">PIN del salón<input id="staff-pin" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" required></label><button class="button" type="submit">Ingresar</button>${message}</form>`;
   document.querySelector('#login').addEventListener('submit', async (event) => {
     event.preventDefault();
     const name = document.querySelector('#staff-name').value.trim();
@@ -59,10 +68,12 @@ function paintLogin(order, message = '') {
       if (result.status === 201) {
         writeSession({ token: result.data.token, name: result.data.name });
         paintConfirm(order);
-      } else if (result.status === 429) {
-        paintLogin(order, status('error', 'Demasiados intentos. Esperá unos minutos y probá de nuevo.'));
-      } else {
+      } else if (result.status === 401) {
         paintLogin(order, status('error', 'El PIN no es correcto.'));
+      } else if (result.status === 429) {
+        paintLogin(order, status('error', 'Hay demasiados intentos de ingreso. Esperá un rato y probá de nuevo; si no anda, avisale al encargado.'));
+      } else {
+        paintLogin(order, status('error', 'No se pudo ingresar ahora. Avisale al encargado.'));
       }
     } catch {
       paintLogin(order, status('error', 'No hay conexión con el servidor. Probá de nuevo.'));
@@ -72,7 +83,7 @@ function paintLogin(order, message = '') {
 
 function paintConfirm(order, message = '', force = false) {
   const session = readSession();
-  content.innerHTML = `${orderCard(order)}<button class="button" id="send" type="button">${force ? 'Enviar de nuevo igual' : 'Confirmar y enviar a Telegram'}</button>${message}<p class="staff-note" style="margin-top:14px">Ingresaste como ${escapeHtml(session.name)}.</p>`;
+  content.innerHTML = `${orderCard(order)}<button class="button" id="send" type="button">${force ? 'Enviar de nuevo igual' : 'Confirmar y enviar a Telegram'}</button>${message}<p class="staff-note staff-note-after">Ingresaste como ${escapeHtml(session.name)}.</p>`;
   document.querySelector('#send').addEventListener('click', async (event) => {
     event.target.disabled = true;
     try {
@@ -82,6 +93,8 @@ function paintConfirm(order, message = '', force = false) {
         content.innerHTML = `${orderCard(order)}${status('ok', `Pedido #${result.data.number} enviado.`)}${warning}`;
       } else if (result.status === 409) {
         paintConfirm(order, status('warning', `Este pedido ya se envió como #${result.data.number}. Si es otra ronda igual, enviala de nuevo.`), true);
+      } else if (result.status === 429) {
+        paintConfirm(order, status('warning', 'Se mandaron muchos pedidos seguidos. Esperá un minuto y probá de nuevo.'), force);
       } else if (result.status === 401) {
         writeSession(null);
         paintLogin(order, status('error', 'Tu ingreso venció. Poné el PIN otra vez.'));
