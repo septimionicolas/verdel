@@ -2,7 +2,7 @@
 
 Prefijo `/api`. JSON en UTF-8. La plata va en centavos enteros. Los errores devuelven `{ "error": "CODIGO" }`. Toda respuesta, también los errores y los archivos de la carta, lleva las cabeceras de seguridad de D21 en `docs/decisiones.md`; las de la API, `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`.
 
-Tope general por origen: 2.000 pedidos por minuto a `/api/` y otros 2.000 a los archivos de la carta. Pasado el tope, `429 RATE_LIMITED` con `Cache-Control: no-store`, en cualquier ruta. Todos los celulares del bar salen por la misma dirección del wifi: los topes por origen están medidos para el bar lleno, no para un celular.
+Tope general por origen: 2.000 pedidos por minuto a cada ruta de `/api/` (las rutas que no existen comparten uno) y otros 2.000 a los archivos de la carta. Pasado el tope, `429 RATE_LIMITED` con `Cache-Control: no-store` en esa ruta; las otras siguen. `POST /api/orders` con un ingreso válido no cuenta para este tope: lo frena solo el tope por ingreso, así un celular que inunda la API desde el wifi del bar no deja a las mozas sin confirmar. Todos los celulares del bar salen por la misma dirección del wifi: los topes por origen están medidos para el bar lleno, no para un celular.
 
 ## `GET /api/health`
 

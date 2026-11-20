@@ -16,6 +16,7 @@ const SECURITY_HEADERS = {
   'cross-origin-opener-policy': 'same-origin',
   'permissions-policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
 };
+const API_ROUTES = new Set(['/api/health', '/api/orders', '/api/orders/status', '/api/staff/sessions', '/api/suggestions']);
 const ERROR_STATUS = { ORDER_ALREADY_SENT: 409, ORDER_CODE_INVALID: 422, PRODUCT_UNKNOWN: 422, TABLE_UNKNOWN: 422 };
 
 async function readJson(request) {
@@ -98,7 +99,10 @@ export function createHttpHandler({ service, auth, config, webDir, ready, sugges
         if (!staticLimiter.take(origin)) return limited(response);
         return await serveStatic(url.pathname, response);
       }
-      if (!apiLimiter.take(origin)) return limited(response, cors);
+      const token = String(request.headers.authorization || '').replace(/^Bearer /, '');
+      const staff = request.method === 'POST' && url.pathname === '/api/orders' ? auth.verify(token) : null;
+      const route = API_ROUTES.has(url.pathname) ? url.pathname : '/api/*';
+      if (!staff && !apiLimiter.take(`${origin} ${route}`)) return limited(response, cors);
       if (request.method === 'OPTIONS') return send(response, 204, '', cors);
       if (request.method === 'GET' && url.pathname === '/api/health') {
         return send(response, 200, { ok: true, ready }, cors);
@@ -134,13 +138,11 @@ export function createHttpHandler({ service, auth, config, webDir, ready, sugges
       }
 
       if (url.pathname === '/api/orders') {
-        const token = String(request.headers.authorization || '').replace(/^Bearer /, '');
-        const session = auth.verify(token);
-        if (!session) return send(response, 401, { error: 'SESSION_INVALID' }, cors);
+        if (!staff) return send(response, 401, { error: 'SESSION_INVALID' }, cors);
         const code = String(body.code || '');
         const force = body.force === true;
         if (!orderLimiter.take(token) || (force && !forceLimiter.take(code))) return limited(response, cors);
-        const result = await service.confirmOrder({ code, staff: session.name, force });
+        const result = await service.confirmOrder({ code, staff: staff.name, force });
         if (result.error) return send(response, ERROR_STATUS[result.error] || 422, result, cors);
         return send(response, 201, result, cors);
       }
