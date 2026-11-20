@@ -16,7 +16,7 @@ id "$SERVICE_USER" >/dev/null 2>&1 || useradd --system --home "$TARGET" --shell 
 mkdir -p "$TARGET/data"
 
 if [ ! -f "$TARGET/.env" ]; then
-  sed -e "s|^PORT=.*|PORT=$PORT|" -e "s|^DATA_DIR=.*|DATA_DIR=$TARGET/data|" -e "s|^SESSION_SECRET=.*|SESSION_SECRET=$(head -c 32 /dev/urandom | base64 | tr -d '=+/')|" "$TARGET/app/.env.example" > "$TARGET/.env"
+  sed -e "s|^PORT=.*|PORT=$PORT|" -e "s|^HOST=.*|HOST=127.0.0.1|" -e "s|^DATA_DIR=.*|DATA_DIR=$TARGET/data|" -e "s|^SESSION_SECRET=.*|SESSION_SECRET=$(head -c 32 /dev/urandom | base64 | tr -d '=+/')|" "$TARGET/app/.env.example" > "$TARGET/.env"
   chmod 600 "$TARGET/.env"
 fi
 

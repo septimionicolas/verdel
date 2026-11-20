@@ -1,6 +1,7 @@
 export function readConfig(env = process.env) {
   return {
     port: Number(env.PORT || 3005),
+    host: env.HOST || '',
     dataDir: env.DATA_DIR || './data',
     botToken: env.TELEGRAM_BOT_TOKEN || '',
     stationBotTokens: Object.fromEntries([['pizzas', env.PIZZAS_BOT_TOKEN], ['house', env.HOUSE_BOT_TOKEN]].filter(([, token]) => token)),

@@ -29,7 +29,7 @@ const auth = createAuth({ pin: config.staffPin, secret: config.sessionSecret });
 const webDir = fileURLToPath(new URL('../web/', import.meta.url));
 const server = createServer(createHttpHandler({ service, auth, config, webDir, ready: settings.ready, advisor, suggester }));
 
-server.listen(config.port, () => log('listening', { port: config.port, telegram: Boolean(telegram), stationBots: Object.keys(stationTelegrams), advisor: Boolean(advisor), missing: settings.missing, weak: settings.weak }));
+server.listen(config.port, config.host || undefined, () => log('listening', { port: config.port, host: config.host || 'todas', telegram: Boolean(telegram), stationBots: Object.keys(stationTelegrams), advisor: Boolean(advisor), missing: settings.missing, weak: settings.weak }));
 const listen = (client, roles) => pollUpdates(client, createBot({ service, telegram: client, venue: VENUE, setupKey: settings.setupKey, roles }).handleUpdate, { signal: stopper.signal, log });
 if (telegram) listen(telegram, Object.keys(ROLE_NAMES).filter((role) => !stationTelegrams[role]));
 for (const [station, client] of Object.entries(stationTelegrams)) listen(client, [station]);

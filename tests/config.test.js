@@ -38,3 +38,8 @@ test('con una clave débil el salón no queda listo y /vincular queda sin clave'
   const missing = settingsState(configWith({ SESSION_SECRET: '' }));
   assert.deepEqual(missing, { missing: ['SESSION_SECRET'], weak: [], ready: false, setupKey: '' });
 });
+
+test('HOST vacío deja escuchar en todas las interfaces', () => {
+  assert.equal(readConfig({}).host, '');
+  assert.equal(readConfig({ HOST: '127.0.0.1' }).host, '127.0.0.1');
+});

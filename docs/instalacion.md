@@ -21,7 +21,7 @@ sudo systemctl restart verdel
 curl -s http://127.0.0.1:3005/api/health
 ```
 
-El instalador recibe la carpeta, el usuario del servicio y el puerto; no tiene nada del boliche escrito adentro. Después se apunta el dominio al puerto con el proxy que ya use el servidor. Con nginx:
+El instalador recibe la carpeta, el usuario del servicio y el puerto; no tiene nada del boliche escrito adentro. Deja `HOST=127.0.0.1`, así el servidor solo atiende al proxy de la misma máquina; en Railway `HOST` va vacío. Después se apunta el dominio al puerto con el proxy que ya use el servidor. Con nginx:
 
 ```nginx
 server {
