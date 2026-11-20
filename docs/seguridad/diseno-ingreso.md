@@ -56,6 +56,7 @@ Repo: /Users/nickynight/dev/verdel, rama seguridad/cierre-2026-11-20, HEAD e3303
    - Se rechaza el pedido.
    - Al grupo owner le llega: "Alguien con el PIN intentó ingresar como «Ana» y Ana Pérez dijo que no fue ella. Si se repite, cambiá STAFF_PIN."
 7. Si el bot no la encuentra en ningún grupo, le contesta: "No te encuentro en el grupo del salón. Volvé al navegador y tocá «No tengo Telegram o no estoy en el grupo»."
+   - Si Telegram no contesta `getChatMember` (corte de red o error) y ningún grupo la encontró, el bot le dice "Telegram no contesta, probá de nuevo en un minuto." y el pedido sigue abierto. "No te encuentro" queda solo para cuando Telegram contesta que no está (`left` o `kicked`).
 
 ### Respaldo: aprobación en el grupo (STAFF_GROUP_APPROVAL=true, activado por defecto)
 - El navegador manda `POST /api/staff/sessions/ask`. Se puede pedir una sola vez por pedido de ingreso.

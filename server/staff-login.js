@@ -150,14 +150,16 @@ export function createStaffLogin({ service, auth, telegram = null, timeZone, now
     return result;
   }
 
-  async function isMember(userId) {
+  async function membership(userId) {
+    let unavailable = false;
     for (const role of ['salon', 'owner']) {
       const chatId = service.chatOf(role);
       if (!chatId || !telegram) continue;
       const member = await telegram.call('getChatMember', { chat_id: chatId, user_id: userId }).catch(() => null);
-      if (member && (MEMBER_STATUSES.has(member.status) || (member.status === 'restricted' && member.is_member))) return true;
+      if (!member) unavailable = true;
+      else if (MEMBER_STATUSES.has(member.status) || (member.status === 'restricted' && member.is_member)) return 'member';
     }
-    return false;
+    return unavailable ? 'unavailable' : 'outside';
   }
 
   function waiting(requestId) {
@@ -171,7 +173,9 @@ export function createStaffLogin({ service, auth, telegram = null, timeZone, now
   async function telegramStart(requestId, user) {
     const entry = waiting(requestId);
     if (!entry || (entry.telegramUserId && entry.telegramUserId !== user.id)) return { text: expiredText };
-    if (!(await isMember(user.id))) return { text: 'No te encuentro en el grupo del salón. Volvé al navegador y tocá «No tengo Telegram o no estoy en el grupo».' };
+    const found = await membership(user.id);
+    if (found === 'unavailable') return { text: 'Telegram no contesta, probá de nuevo en un minuto.' };
+    if (found === 'outside') return { text: 'No te encuentro en el grupo del salón. Volvé al navegador y tocá «No tengo Telegram o no estoy en el grupo».' };
     entry.telegramUserId = user.id;
     return {
       text: `Hola ${escapeHtml(user.name)}. ¿Sos vos la que está ingresando como «${escapeHtml(entry.name)}» desde ${escapeHtml(entry.device)}, con el número <b>${entry.matchCode}</b>?`,
