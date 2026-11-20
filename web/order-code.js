@@ -9,6 +9,19 @@ export function newNonce(source = globalThis.crypto) {
   return [...source.getRandomValues(new Uint8Array(20))].map((byte) => NONCE_ALPHABET[byte & 31]).join('');
 }
 
+export function createNonceKeeper(source = globalThis.crypto) {
+  let shown = null;
+  return {
+    nonceFor(key) {
+      if (!shown || shown.key !== key) shown = { key, nonce: newNonce(source) };
+      return shown.nonce;
+    },
+    forget() {
+      shown = null;
+    },
+  };
+}
+
 export function encodeOrder(table, lines, nonce) {
   return `v2.${nonce}.${table}.${lines.map((line) => `${line.key}x${line.quantity}`).join('-')}`;
 }

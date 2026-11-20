@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { VENUE, buildOptionIndex, formatAmount } from '../web/menu.js';
-import { MAX_LINES, contentKey, decodeOrder, encodeOrder, newNonce, priceOrder, tableLabel } from '../web/order-code.js';
+import { MAX_LINES, contentKey, createNonceKeeper, decodeOrder, encodeOrder, newNonce, priceOrder, tableLabel } from '../web/order-code.js';
 import { encodeQr } from '../web/qr.js';
 
 const optionIndex = buildOptionIndex();
@@ -54,6 +54,21 @@ test('cada nonce sale de 20 caracteres de a-z y 2-7, uniforme byte a byte, y sin
   assert.notEqual(newNonce(), newNonce());
   assert.throws(() => newNonce(null), /NONCE_UNAVAILABLE/);
   assert.throws(() => newNonce({}), /NONCE_UNAVAILABLE/);
+});
+
+test('el celular reusa el nonce si muestra el mismo carrito y arma otro cuando el carrito cambia o se descarta', () => {
+  const nonces = createNonceKeeper();
+  const first = nonces.nonceFor('7.no1x2');
+  assert.match(first, /^[a-z2-7]{20}$/);
+  assert.equal(nonces.nonceFor('7.no1x2'), first);
+  const changed = nonces.nonceFor('7.no1x3');
+  assert.notEqual(changed, first);
+  assert.notEqual(nonces.nonceFor('8.no1x3'), changed);
+  const again = nonces.nonceFor('8.no1x3');
+  nonces.forget();
+  assert.notEqual(nonces.nonceFor('8.no1x3'), again);
+  assert.notEqual(createNonceKeeper().nonceFor('7.no1x2'), first);
+  assert.throws(() => createNonceKeeper(null).nonceFor('7.no1x2'), /NONCE_UNAVAILABLE/);
 });
 
 test('la misma mesa con las mismas líneas da el mismo contenido aunque cambien el nonce o el orden', () => {
