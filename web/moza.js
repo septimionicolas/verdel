@@ -49,7 +49,7 @@ async function request(path, body, token) {
 }
 
 function paintLogin(order, message = '') {
-  content.innerHTML = `${orderCard(order)}<form id="login"><p class="staff-note">Es la primera vez en este celular. Poné tu nombre y el PIN del salón.</p><label class="field">Tu nombre<input id="staff-name" autocomplete="given-name" maxlength="24" required></label><label class="field">PIN del salón<input id="staff-pin" type="password" inputmode="numeric" autocomplete="off" maxlength="12" required></label><button class="button" type="submit">Ingresar</button>${message}</form>`;
+  content.innerHTML = `${orderCard(order)}<form id="login"><p class="staff-note">Es la primera vez en este celular. Poné tu nombre y el PIN del salón.</p><label class="field">Tu nombre<input id="staff-name" autocomplete="given-name" maxlength="24" required></label><label class="field">PIN del salón<input id="staff-pin" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" required></label><button class="button" type="submit">Ingresar</button>${message}</form>`;
   document.querySelector('#login').addEventListener('submit', async (event) => {
     event.preventDefault();
     const name = document.querySelector('#staff-name').value.trim();

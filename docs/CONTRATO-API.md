@@ -14,7 +14,7 @@ No es parte de `/api`, pero la sirve el servidor en lugar de `web/config.js`: `a
 
 ## `POST /api/staff/sessions`
 
-La usa `moza.html` la primera vez en cada celular.
+La usa `moza.html` la primera vez en cada celular. El campo del PIN acepta letras y números sin largo máximo, igual que `STAFF_PIN`: un teclado numérico o un tope de caracteres dejaría afuera a un PIN válido.
 
 - Pide `{ "name": "Caro", "pin": "…" }`.
 - `201 { "token": "…", "name": "Caro" }`.
