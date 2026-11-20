@@ -23,12 +23,14 @@ function writeSession(session) {
   } catch {}
 }
 
+const OLD_CODE = 'Este código es de una versión vieja del menú. Pedile al cliente que recargue la página y lo arme de nuevo.';
+
 function readOrder() {
-  if (!code) return null;
+  if (!code) return { order: null };
   try {
-    return priceOrder(optionIndex, decodeOrder(code), VENUE.tableCount);
-  } catch {
-    return undefined;
+    return { order: priceOrder(optionIndex, decodeOrder(code), VENUE.tableCount) };
+  } catch (error) {
+    return { order: undefined, old: error.message === 'ORDER_CODE_OLD' };
   }
 }
 
@@ -183,6 +185,8 @@ function paintConfirm(order, message = '', force = false) {
       if (result.status === 201) {
         const warning = result.data.telegram === 'sent' ? '' : status('warning', 'Quedó registrado, pero no llegó a Telegram. Avisale al encargado.');
         paint(`${orderCard(order)}${status('ok', `Pedido #${result.data.number} enviado.`)}${warning}`);
+      } else if (result.status === 409 && result.data.reason === 'same_code') {
+        paint(`${orderCard(order)}${status('warning', `Este código ya se envió como #${result.data.number}. Para otra ronda, el cliente tiene que tocar algo en el carrito o recargar el menú.`)}`);
       } else if (result.status === 409) {
         paintConfirm(order, status('warning', `Este pedido ya se envió como #${result.data.number}. Si es otra ronda igual, enviala de nuevo.`), true);
       } else if (result.status === 429) {
@@ -190,6 +194,8 @@ function paintConfirm(order, message = '', force = false) {
       } else if (result.status === 401) {
         writeSession(null);
         paintLogin(order, ended());
+      } else if (result.data.error === 'ORDER_CODE_OLD') {
+        paint(`${orderCard(order)}${status('error', OLD_CODE)}`);
       } else {
         paintConfirm(order, status('error', 'El pedido no se pudo enviar. Pedile al cliente que arme el código de nuevo.'));
       }
@@ -199,11 +205,11 @@ function paintConfirm(order, message = '', force = false) {
   });
 }
 
-const order = readOrder();
+const { order, old } = readOrder();
 if (order === null) {
   content.innerHTML = '<p class="staff-note">Abrí la cámara y escaneá el código que te muestra el cliente en su celular.</p>';
 } else if (order === undefined) {
-  content.innerHTML = status('error', 'Este código no se pudo leer. Pedile al cliente que lo arme de nuevo.');
+  content.innerHTML = status('error', old ? OLD_CODE : 'Este código no se pudo leer. Pedile al cliente que lo arme de nuevo.');
 } else if (CONFIG.apiBase === null) {
   content.innerHTML = orderCard(order) + status('warning', 'Telegram todavía no está conectado. Tomá el pedido desde esta pantalla.');
 } else if (liveSession()) {
