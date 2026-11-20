@@ -5,7 +5,7 @@ import { VENUE, buildOptionIndex } from '../web/menu.js';
 import { createAdvisor } from './advisor.js';
 import { createAuth } from './auth.js';
 import { createBot } from './bot.js';
-import { missingSettings, readConfig } from './config.js';
+import { readConfig, settingsState } from './config.js';
 import { createHttpHandler } from './http.js';
 import { createService } from './service.js';
 import { createSuggester } from './suggestions.js';
@@ -17,7 +17,7 @@ process.env.TZ = 'UTC';
 
 const config = readConfig();
 const log = (event, detail = {}) => console.log(JSON.stringify({ at: new Date().toISOString(), event, ...detail }));
-const missing = missingSettings(config);
+const settings = settingsState(config);
 const stopper = new AbortController();
 const connect = (token) => createTelegram({ token, apiBase: config.telegramApiBase, signal: stopper.signal, log });
 const telegram = config.botToken ? connect(config.botToken) : null;
@@ -27,10 +27,10 @@ const service = createService({ store: openEventStore(config.dataDir), telegram,
 const suggester = advisor ? createSuggester({ advisor, optionIndex: buildOptionIndex(), nightLimit: config.advisorNightLimit, nightNumber: () => currentNight(service.state).number, log }) : null;
 const auth = createAuth({ pin: config.staffPin, secret: config.sessionSecret });
 const webDir = fileURLToPath(new URL('../web/', import.meta.url));
-const server = createServer(createHttpHandler({ service, auth, config, webDir, ready: missing.length === 0, advisor, suggester }));
+const server = createServer(createHttpHandler({ service, auth, config, webDir, ready: settings.ready, advisor, suggester }));
 
-server.listen(config.port, () => log('listening', { port: config.port, telegram: Boolean(telegram), stationBots: Object.keys(stationTelegrams), advisor: Boolean(advisor), missing }));
-const listen = (client, roles) => pollUpdates(client, createBot({ service, telegram: client, venue: VENUE, setupKey: config.setupKey, roles }).handleUpdate, { signal: stopper.signal, log });
+server.listen(config.port, () => log('listening', { port: config.port, telegram: Boolean(telegram), stationBots: Object.keys(stationTelegrams), advisor: Boolean(advisor), missing: settings.missing, weak: settings.weak }));
+const listen = (client, roles) => pollUpdates(client, createBot({ service, telegram: client, venue: VENUE, setupKey: settings.setupKey, roles }).handleUpdate, { signal: stopper.signal, log });
 if (telegram) listen(telegram, Object.keys(ROLE_NAMES).filter((role) => !stationTelegrams[role]));
 for (const [station, client] of Object.entries(stationTelegrams)) listen(client, [station]);
 

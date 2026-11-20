@@ -12,7 +12,7 @@ import { memoryEventStore } from '../server/store.js';
 let nowMs = Date.parse('2026-11-15T01:10:00Z');
 const store = memoryEventStore(() => new Date(nowMs));
 const service = createService({ store, telegram: null, optionIndex: buildOptionIndex(), venue: VENUE, now: () => nowMs });
-const auth = createAuth({ pin: '4321', secret: 'secreto', now: () => nowMs });
+const auth = createAuth({ pin: 'birra-fria-26', secret: 'firma-de-prueba-0123456789abcdef-larga', now: () => nowMs });
 const config = { botToken: '', allowedOrigins: [], trustProxy: false };
 const server = createServer(createHttpHandler({ service, auth, config, webDir: fileURLToPath(new URL('../web/', import.meta.url)), ready: true, now: () => nowMs }));
 let base = '';

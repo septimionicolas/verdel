@@ -39,8 +39,8 @@ async function fakeFetch(url, options) {
 const telegram = createTelegram({ token: 'TEST', apiBase: 'http://telegram.test', fetchImpl: fakeFetch, sleep });
 const store = memoryEventStore(() => new Date(nowMs));
 const service = createService({ store, telegram, optionIndex: buildOptionIndex(), venue: VENUE, now: () => nowMs, log: (event, detail) => logs.push({ event, ...detail }) });
-const bot = createBot({ service, telegram, venue: VENUE, setupKey: 'clave' });
-const auth = createAuth({ pin: '4321', secret: 'secreto', now: () => nowMs });
+const bot = createBot({ service, telegram, venue: VENUE, setupKey: 'clave-de-vincular-2026' });
+const auth = createAuth({ pin: 'birra-fria-26', secret: 'firma-de-prueba-0123456789abcdef-larga', now: () => nowMs });
 const config = { botToken: 'TEST', allowedOrigins: ['https://carta.test'], trustProxy: false };
 const server = createServer(createHttpHandler({ service, auth, config, webDir: fileURLToPath(new URL('../web/', import.meta.url)), ready: true }));
 let base = '';
@@ -62,10 +62,10 @@ after(() => server.close());
 test('cada grupo se vincula con la clave y sin ella no', async () => {
   await command(CHATS.salon, '/vincular salon mala');
   assert.deepEqual(service.state.bindings, {});
-  await command(CHATS.salon, '/vincular salon clave');
-  await command(CHATS.pizzas, '/vincular@verdel_bot pizzas clave');
-  await command(CHATS.house, '/vincular cocina clave');
-  await command(CHATS.owner, '/vincular dueno clave');
+  await command(CHATS.salon, '/vincular salon clave-de-vincular-2026');
+  await command(CHATS.pizzas, '/vincular@verdel_bot pizzas clave-de-vincular-2026');
+  await command(CHATS.house, '/vincular cocina clave-de-vincular-2026');
+  await command(CHATS.owner, '/vincular dueno clave-de-vincular-2026');
   assert.deepEqual(Object.keys(service.state.bindings), ['salon', 'pizzas', 'house', 'owner']);
   assert.ok(calls.some((call) => call.method === 'deleteMessage'));
 });
@@ -73,7 +73,7 @@ test('cada grupo se vincula con la clave y sin ella no', async () => {
 test('sin ingreso no se confirma nada y el PIN da el ingreso', async () => {
   assert.equal((await post('/api/orders', { code: 'v1.7.no1x2' })).status, 401);
   assert.equal((await post('/api/staff/sessions', { name: 'Caro', pin: '0000' })).status, 401);
-  const response = await post('/api/staff/sessions', { name: 'Caro', pin: '4321' });
+  const response = await post('/api/staff/sessions', { name: 'Caro', pin: 'birra-fria-26' });
   assert.equal(response.status, 201);
   token = (await response.json()).token;
 });
@@ -200,5 +200,5 @@ test('el servidor sirve la carta, su configuración y nada fuera de la carpeta',
 
 test('cinco PIN mal desde el mismo origen frenan los intentos', async () => {
   for (let attempt = 0; attempt < 5; attempt++) await post('/api/staff/sessions', { name: 'Caro', pin: '1111' });
-  assert.equal((await post('/api/staff/sessions', { name: 'Caro', pin: '4321' })).status, 429);
+  assert.equal((await post('/api/staff/sessions', { name: 'Caro', pin: 'birra-fria-26' })).status, 429);
 });

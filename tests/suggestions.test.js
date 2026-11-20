@@ -29,7 +29,7 @@ async function fakeAnthropic(url, init) {
 const service = createService({ store: memoryEventStore(() => new Date(nowMs)), telegram: null, optionIndex, venue: VENUE, now: () => nowMs });
 const advisor = createAdvisor({ apiKey: 'clave-de-prueba', apiBase: 'http://anthropic.test', model: 'claude-fable-5-2', fetchImpl: fakeAnthropic });
 const suggester = createSuggester({ advisor, optionIndex, nightLimit: 13, nightNumber: () => service.state.nights.at(-1).number, timeoutMs: 40, log: (event, detail) => logs.push({ event, ...detail }) });
-const auth = createAuth({ pin: '4321', secret: 'secreto' });
+const auth = createAuth({ pin: 'birra-fria-26', secret: 'firma-de-prueba-0123456789abcdef-larga' });
 const servers = {
   on: createServer(createHttpHandler({ service, auth, config, webDir, ready: true, advisor, suggester, now: () => nowMs })),
   off: createServer(createHttpHandler({ service, auth, config, webDir, ready: true, now: () => nowMs })),

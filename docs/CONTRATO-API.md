@@ -4,7 +4,7 @@ Prefijo `/api`. JSON en UTF-8. La plata va en centavos enteros. Los errores devu
 
 ## `GET /api/health`
 
-Sin ingreso. `200 { ok, ready, telegram, advisor, bound, night, orders }`. `ready` es `false` si falta `STAFF_PIN`, `SETUP_KEY` o `SESSION_SECRET`; `advisor` es `true` si hay `ANTHROPIC_API_KEY` (el párrafo del cierre y, más adelante, las sugerencias en texto libre); `bound` lista los grupos vinculados.
+Sin ingreso. `200 { ok, ready, telegram, advisor, bound, night, orders }`. `ready` es `false` si falta `STAFF_PIN`, `SETUP_KEY` o `SESSION_SECRET`, o si alguna es débil (ver «Claves» en `docs/decisiones.md`); en ese caso las rutas del salón responden `503 NOT_CONFIGURED`; `advisor` es `true` si hay `ANTHROPIC_API_KEY` (el párrafo del cierre y, más adelante, las sugerencias en texto libre); `bound` lista los grupos vinculados.
 
 ## `POST /api/staff/sessions`
 
