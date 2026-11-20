@@ -37,13 +37,17 @@ async function open({ limits, authOptions = {} } = {}) {
   return { clock, call, login, signIn, close: () => server.close() };
 }
 
+const nonce = (seed) => String(seed).replace(/\d/g, (digit) => 'abcdefghij'[digit]).padEnd(20, 'z');
+const v2 = (seed, rest) => `v2.${nonce(seed)}.${rest}`;
+const statusOf = (seed, rest) => `/api/orders/status?code=${v2(seed, rest)}`;
+
 test('treinta celulares detrás de la misma dirección siguen su pedido diez minutos sin que los frene', async (t) => {
   const bar = await open();
   t.after(bar.close);
   const statuses = new Set();
   for (let minute = 0; minute < 10; minute++) {
     for (let poll = 0; poll < 12; poll++) {
-      const round = await Promise.all(Array.from({ length: 30 }, (_, phone) => bar.call(`/api/orders/status?code=v1.${phone + 1}.no0x1`)));
+      const round = await Promise.all(Array.from({ length: 30 }, (_, phone) => bar.call(statusOf(phone, `${phone + 1}.no0x1`))));
       for (const answer of round) statuses.add(answer.status);
     }
     bar.clock.now += MINUTE;
@@ -51,23 +55,35 @@ test('treinta celulares detrás de la misma dirección siguen su pedido diez min
   assert.deepEqual([...statuses], [200]);
 });
 
-test('un mismo código consultado más de lo que pregunta un celular se frena, y los otros códigos de esa dirección siguen', async (t) => {
+test('un mismo nonce consultado más de lo que pregunta un celular se frena desde cualquier dirección, y los otros siguen', async (t) => {
   const bar = await open();
   t.after(bar.close);
-  for (let poll = 0; poll < 30; poll++) assert.equal((await bar.call('/api/orders/status?code=v1.1.no0x1')).status, 200);
-  assert.deepEqual(await bar.call('/api/orders/status?code=v1.1.no0x1'), { status: 429, text: '{"error":"RATE_LIMITED"}' });
-  assert.equal((await bar.call('/api/orders/status?code=v1.2.no0x1')).status, 200);
-  assert.equal((await bar.call('/api/orders/status?code=v1.1.no0x1', { from: '200.9.9.9' })).status, 200);
+  for (let poll = 0; poll < 20; poll++) assert.equal((await bar.call(statusOf(1, '1.no0x1'))).status, 200);
+  assert.deepEqual(await bar.call(statusOf(1, '1.no0x1')), { status: 429, text: '{"error":"RATE_LIMITED"}' });
+  assert.equal((await bar.call(statusOf(1, '9.pe0x3'), { from: '200.9.9.9' })).status, 429);
+  assert.equal((await bar.call(statusOf(2, '1.no0x1'))).status, 200);
   bar.clock.now += MINUTE;
-  assert.equal((await bar.call('/api/orders/status?code=v1.1.no0x1')).status, 200);
+  assert.equal((await bar.call(statusOf(1, '1.no0x1'))).status, 200);
 });
 
-test('las consultas de estado de una dirección tienen un techo para todo el bar', async (t) => {
-  const bar = await open({ limits: { statusPerOrigin: 3 } });
+test('decenas de celulares detrás de la misma IP siguen su pedido y la dirección tiene un techo para todo el bar', async (t) => {
+  const bar = await open();
   t.after(bar.close);
-  for (let table = 1; table <= 3; table++) assert.equal((await bar.call(`/api/orders/status?code=v1.${table}.no0x1`)).status, 200);
-  assert.equal((await bar.call('/api/orders/status?code=v1.4.no0x1')).status, 429);
-  assert.equal((await bar.call('/api/orders/status?code=v1.4.no0x1', { from: '200.9.9.9' })).status, 200);
+  for (let phone = 0; phone < 90; phone++) assert.equal((await bar.call(statusOf(100 + phone, `${(phone % 30) + 1}.no0x1`))).status, 200);
+  const capped = await open({ limits: { statusPerOrigin: 3 } });
+  t.after(capped.close);
+  for (let table = 1; table <= 3; table++) assert.equal((await capped.call(statusOf(table, `${table}.no0x1`))).status, 200);
+  assert.equal((await capped.call(statusOf(4, '4.no0x1'))).status, 429);
+  assert.equal((await capped.call(statusOf(4, '4.no0x1'), { from: '200.9.9.9' })).status, 200);
+});
+
+test('las consultas de estado tienen un techo total aunque lleguen de direcciones distintas', async (t) => {
+  const bar = await open({ limits: { statusTotal: 3 } });
+  t.after(bar.close);
+  for (let origin = 1; origin <= 3; origin++) assert.equal((await bar.call(statusOf(origin, '1.no0x1'), { from: `200.5.5.${origin}` })).status, 200);
+  assert.deepEqual(await bar.call(statusOf(4, '1.no0x1'), { from: '200.5.5.4' }), { status: 429, text: '{"error":"RATE_LIMITED"}' });
+  bar.clock.now += MINUTE;
+  assert.equal((await bar.call(statusOf(4, '1.no0x1'), { from: '200.5.5.4' })).status, 200);
 });
 
 test('cada ingreso manda hasta 30 pedidos por minuto y otra moza en la misma dirección sigue', async (t) => {
@@ -75,22 +91,23 @@ test('cada ingreso manda hasta 30 pedidos por minuto y otra moza en la misma dir
   t.after(bar.close);
   const caro = await bar.signIn('Caro');
   const marta = await bar.signIn('Marta');
-  for (let order = 0; order < 30; order++) assert.notEqual((await bar.call('/api/orders', { method: 'POST', token: caro, body: { code: `v1.${(order % 30) + 1}.no0x${(order % 9) + 1}` } })).status, 429);
-  assert.deepEqual(await bar.call('/api/orders', { method: 'POST', token: caro, body: { code: 'v1.1.pe0x1' } }), { status: 429, text: '{"error":"RATE_LIMITED"}' });
-  assert.equal((await bar.call('/api/orders', { method: 'POST', token: marta, body: { code: 'v1.1.pe0x1' } })).status, 201);
+  for (let order = 0; order < 30; order++) assert.notEqual((await bar.call('/api/orders', { method: 'POST', token: caro, body: { code: v2(order, `${(order % 30) + 1}.no0x${(order % 9) + 1}`) } })).status, 429);
+  assert.deepEqual(await bar.call('/api/orders', { method: 'POST', token: caro, body: { code: v2(40, '1.pe0x1') } }), { status: 429, text: '{"error":"RATE_LIMITED"}' });
+  assert.equal((await bar.call('/api/orders', { method: 'POST', token: marta, body: { code: v2(41, '1.pe0x1') } })).status, 201);
   bar.clock.now += MINUTE;
-  assert.equal((await bar.call('/api/orders', { method: 'POST', token: caro, body: { code: 'v1.2.pe0x1' } })).status, 201);
+  assert.equal((await bar.call('/api/orders', { method: 'POST', token: caro, body: { code: v2(42, '2.pe0x1') } })).status, 201);
 });
 
-test('el mismo código se puede enviar igual hasta tres veces en diez minutos', async (t) => {
+test('la misma mesa con las mismas líneas se puede enviar igual hasta tres veces en diez minutos', async (t) => {
   const bar = await open();
   t.after(bar.close);
   const token = await bar.signIn('Caro');
-  const resend = () => bar.call('/api/orders', { method: 'POST', token, body: { code: 'v1.5.no0x1', force: true } });
-  assert.equal((await bar.call('/api/orders', { method: 'POST', token, body: { code: 'v1.5.no0x1' } })).status, 201);
+  let round = 50;
+  const resend = () => bar.call('/api/orders', { method: 'POST', token, body: { code: v2(round++, '5.no0x1'), force: true } });
+  assert.equal((await bar.call('/api/orders', { method: 'POST', token, body: { code: v2(round++, '5.no0x1') } })).status, 201);
   for (let time = 0; time < 3; time++) assert.equal((await resend()).status, 201);
   assert.deepEqual(await resend(), { status: 429, text: '{"error":"RATE_LIMITED"}' });
-  assert.equal((await bar.call('/api/orders', { method: 'POST', token, body: { code: 'v1.6.no0x1' } })).status, 201);
+  assert.equal((await bar.call('/api/orders', { method: 'POST', token, body: { code: v2(round++, '6.no0x1') } })).status, 201);
   bar.clock.now += 10 * MINUTE;
   assert.equal((await resend()).status, 201);
 });

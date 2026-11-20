@@ -112,7 +112,7 @@ test('al llegar al tope de la noche es RATE_LIMITED, y con otra noche vuelve a a
   nowMs += 60 * 1000;
   assert.deepEqual(await ask('una birra'), { status: 429, body: { error: 'RATE_LIMITED' } });
   assert.ok(logs.some((entry) => entry.outcome === 'night_limit'));
-  await service.confirmOrder({ code: 'v1.7.no0x1', staff: 'Caro' });
+  await service.confirmOrder({ code: 'v2.aaaaaaaaaaaaaaaaaaaa.7.no0x1', staff: 'Caro' });
   await service.closeNight('Septi');
   assert.equal((await ask('una birra')).status, 200);
 });

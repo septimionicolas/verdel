@@ -79,7 +79,7 @@ test('cada grupo se vincula con la clave y sin ella no', async () => {
 });
 
 test('sin ingreso no se confirma nada, y el PIN más la confirmación en Telegram dan el ingreso', async () => {
-  assert.equal((await post('/api/orders', { code: 'v1.7.no1x2' })).status, 401);
+  assert.equal((await post('/api/orders', { code: 'v2.aaaaaaaaaaaaaaaaaaaa.7.no1x2' })).status, 401);
   assert.equal((await post('/api/staff/sessions', { name: 'Caro', pin: '0000' })).status, 401);
   const response = await post('/api/staff/sessions', { name: 'Caro', pin: 'birra-fria-26' });
   assert.equal(response.status, 202);
@@ -95,7 +95,7 @@ test('sin ingreso no se confirma nada, y el PIN más la confirmación en Telegra
 });
 
 test('el pedido confirmado llega al salón, a cada cocina lo suyo y al dueño', async () => {
-  const response = await order('v1.7.no1x2-pe0x1-pa2x1');
+  const response = await order('v2.aaaaaaaaaaaaaaaaaaaa.7.no1x2-pe0x1-pa2x1');
   assert.equal(response.status, 201);
   assert.deepEqual(await response.json(), { number: 1, totalCents: 6000000, telegram: 'sent' });
 
@@ -112,12 +112,24 @@ test('el pedido confirmado llega al salón, a cada cocina lo suyo y al dueño', 
   assert.match(sentTo(CHATS.owner).at(-1).params.text, /Pedido · Mesa 7 · #1 · \$ 60\.000 · confirmó Caro/);
 });
 
-test('el mismo código dos veces avisa, y con «enviar igual» entra como otro pedido', async () => {
-  const repeated = await order('v1.7.no1x2-pe0x1-pa2x1');
-  assert.equal(repeated.status, 409);
-  assert.equal((await repeated.json()).number, 1);
-  assert.equal((await (await order('v1.7.no1x2-pe0x1-pa2x1', true)).json()).number, 2);
-  assert.equal((await order('v1.7.zz9x1')).status, 422);
+test('el mismo código nunca entra dos veces, ni con «enviar igual»', async () => {
+  for (const force of [false, true]) {
+    const repeated = await order('v2.aaaaaaaaaaaaaaaaaaaa.7.no1x2-pe0x1-pa2x1', force);
+    assert.equal(repeated.status, 409);
+    assert.deepEqual(await repeated.json(), { error: 'ORDER_ALREADY_SENT', number: 1, reason: 'same_code' });
+  }
+  assert.equal(service.state.nights[0].orders.length, 1);
+});
+
+test('otra ronda igual de la misma mesa avisa, y con «enviar igual» entra como otro pedido', async () => {
+  const similar = await order('v2.bbbbbbbbbbbbbbbbbbbb.7.pa2x1-no1x2-pe0x1');
+  assert.equal(similar.status, 409);
+  assert.deepEqual(await similar.json(), { error: 'ORDER_ALREADY_SENT', number: 1, reason: 'similar' });
+  assert.equal((await (await order('v2.bbbbbbbbbbbbbbbbbbbb.7.pa2x1-no1x2-pe0x1', true)).json()).number, 2);
+  assert.equal((await order('v2.cccccccccccccccccccc.7.zz9x1')).status, 422);
+  const old = await order('v1.7.no1x1');
+  assert.equal(old.status, 422);
+  assert.deepEqual(await old.json(), { error: 'ORDER_CODE_OLD' });
 });
 
 test('la cocina avisa «Listo» solo desde su grupo y el salón se entera', async () => {
@@ -174,7 +186,7 @@ test('cobrar y anular se hacen solo desde el salón, y anular pide confirmación
 
 test('el cierre avisa lo que falta cobrar, manda el reporte al dueño y abre otra noche', async () => {
   nowMs += 40 * 60 * 1000;
-  await order('v1.3.he0x1-em1x1');
+  await order('v2.dddddddddddddddddddd.3.he0x1-em1x1');
   await command(CHATS.pizzas, '/cierre');
   assert.match(sentTo(CHATS.pizzas).at(-1).params.text, /grupo del salón o el del dueño/);
 
@@ -194,11 +206,11 @@ test('el cierre avisa lo que falta cobrar, manda el reporte al dueño y abre otr
   assert.match(sentTo(CHATS.salon).at(-1).params.text, /Vendido: <b>\$ 93\.000<\/b>\nCobrado en caja: \$ 60\.000 \(1\)\nSin cobrar: \$ 33\.000 \(1\)\nAnulados: 1/);
 
   assert.equal(service.state.nights.length, 2);
-  assert.deepEqual(await (await order('v1.5.fe0x2')).json(), { error: 'SESSION_INVALID' });
+  assert.deepEqual(await (await order('v2.eeeeeeeeeeeeeeeeeeee.5.fe0x2')).json(), { error: 'SESSION_INVALID' });
   const request = await (await post('/api/staff/sessions', { name: 'Caro', pin: 'birra-fria-26' })).json();
   await confirmInTelegram(request.requestId);
   token = (await (await post('/api/staff/sessions/claim', { requestId: request.requestId, claimSecret: request.claimSecret })).json()).token;
-  assert.equal((await (await order('v1.5.fe0x2')).json()).number, 1);
+  assert.equal((await (await order('v2.eeeeeeeeeeeeeeeeeeee.5.fe0x2')).json()).number, 1);
   assert.equal(service.state.nights[1].orders[0].id, '2-1');
   await tap(CHATS.salon, 'close:1', 'Septi');
   assert.match(lastAnswer(), /ya estaba cerrada/);

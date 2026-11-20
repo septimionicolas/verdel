@@ -1,4 +1,5 @@
 import { STATIONS } from '../web/menu.js';
+import { contentKey } from '../web/order-code.js';
 
 export const ROLE_NAMES = { salon: 'Salón', pizzas: STATIONS.pizzas, house: STATIONS.house, owner: 'Dueño' };
 export const ROLE_ALIASES = { salon: 'salon', pizzas: 'pizzas', cocina: 'house', dueno: 'owner' };
@@ -9,7 +10,7 @@ function newNight(number) {
 }
 
 export function initialState() {
-  return { bindings: {}, nights: [newNight(1)], sessions: {} };
+  return { bindings: {}, nights: [newNight(1)], sessions: {}, usedNonces: new Map() };
 }
 
 function endSession(session, at, reason) {
@@ -66,7 +67,7 @@ export function applyEvent(state, event) {
     return state;
   }
   if (event.type === 'order_confirmed') {
-    currentNight(state).orders.push({
+    const order = {
       id: event.orderId,
       number: event.number,
       table: event.table,
@@ -75,6 +76,7 @@ export function applyEvent(state, event) {
       staff: event.staff,
       sessionId: event.sessionId ?? null,
       code: event.code,
+      nonce: event.nonce ?? null,
       confirmedAt: event.at,
       status: 'open',
       chargedAt: null,
@@ -83,7 +85,9 @@ export function applyEvent(state, event) {
       voidedBy: null,
       ready: {},
       messages: {},
-    });
+    };
+    currentNight(state).orders.push(order);
+    if (order.nonce) state.usedNonces.set(order.nonce, order);
     return state;
   }
   if (event.type === 'night_closed') {
@@ -118,18 +122,12 @@ export function kitchenLines(order, station) {
   return order.lines.flatMap((line) => line.kitchen.filter((part) => part.station === station).map((part) => ({ quantity: line.quantity, label: part.label })));
 }
 
-export function findDuplicate(state, code, nowMs, windowMs = 10 * 60 * 1000) {
-  return currentNight(state).orders.find((order) => order.code === code && order.status !== 'voided' && nowMs - Date.parse(order.confirmedAt) < windowMs) || null;
+export function findDuplicate(state, decoded, nowMs, windowMs = 10 * 60 * 1000) {
+  const key = contentKey(decoded);
+  return currentNight(state).orders.find((order) => order.status !== 'voided' && nowMs - Date.parse(order.confirmedAt) < windowMs && contentKey(order) === key) || null;
 }
 
-export function findLatestByCode(state, code, sinceMs = null) {
-  const orders = currentNight(state).orders;
-  for (let index = orders.length - 1; index >= 0; index -= 1) {
-    const order = orders[index];
-    if (order.code === code && (sinceMs === null || Date.parse(order.confirmedAt) >= sinceMs)) return order;
-  }
-  return null;
-}
+export const findByNonce = (state, nonce) => state.usedNonces.get(nonce) || null;
 
 export function trackingState(order) {
   if (order.status === 'voided') return 'voided';

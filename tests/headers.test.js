@@ -65,7 +65,7 @@ test('las páginas no traen estilos ni código en línea que la CSP bloquearía'
 test('la API, los archivos y los errores también llevan las cabeceras, con default-src none', async () => {
   const requests = [
     ['ready', '/api/health'],
-    ['ready', '/api/orders/status?code=v1.1.no1x1'],
+    ['ready', '/api/orders/status?code=v2.aaaaaaaaaaaaaaaaaaaa.1.no1x1'],
     ['ready', '/api/nada'],
     ['ready', '/styles.css'],
     ['ready', '/config.js'],

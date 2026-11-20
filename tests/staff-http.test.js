@@ -48,7 +48,7 @@ test('el ingreso por HTTP pasa por pedido, espera, confirmación en Telegram y e
   assert.equal(claimed.status, 201);
   assert.equal(claimed.body.name, 'Ana');
   assert.equal((await bar.post('/api/staff/sessions/claim', pair(asked.body))).status, 410);
-  const order = await bar.post('/api/orders', { code: 'v1.3.no0x1' }, claimed.body.token);
+  const order = await bar.post('/api/orders', { code: 'v2.aaaaaaaaaaaaaaaaaaaa.3.no0x1' }, claimed.body.token);
   assert.equal(order.status, 201);
   assert.equal(bar.store.events.find((event) => event.type === 'order_confirmed').sessionId, bar.staff.verify(claimed.body.token).sessionId);
 });
@@ -67,7 +67,7 @@ test('los errores del ingreso salen con su código HTTP', async (t) => {
   const entered = await bar.post('/api/staff/sessions/emergency', { ...pair(asked), setupKey: keys.setupKey });
   assert.equal(entered.status, 201);
   assert.equal((await bar.post('/api/staff/sessions/end', {}, entered.body.token)).status, 204);
-  assert.deepEqual((await bar.post('/api/orders', { code: 'v1.3.no0x1' }, entered.body.token)).body, { error: 'SESSION_INVALID' });
+  assert.deepEqual((await bar.post('/api/orders', { code: 'v2.bbbbbbbbbbbbbbbbbbbb.3.no0x1' }, entered.body.token)).body, { error: 'SESSION_INVALID' });
   assert.equal((await bar.post('/api/staff/sessions/end', {}, entered.body.token)).status, 401);
 });
 
@@ -83,5 +83,5 @@ test('un token con el formato de antes ya no confirma pedidos', async (t) => {
   const bar = await open();
   t.after(bar.close);
   const old = 'eyJuYW1lIjoiQ2FybyIsImV4cCI6OTk5OTk5OTk5OTk5OX0.Zmlyb2E';
-  assert.deepEqual(await bar.post('/api/orders', { code: 'v1.3.no0x1' }, old), { status: 401, body: { error: 'SESSION_INVALID' }, cache: null });
+  assert.deepEqual(await bar.post('/api/orders', { code: 'v2.cccccccccccccccccccc.3.no0x1' }, old), { status: 401, body: { error: 'SESSION_INVALID' }, cache: null });
 });
