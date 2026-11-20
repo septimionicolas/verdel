@@ -64,6 +64,7 @@ export function summaryText(stats, venueName) {
 }
 
 export function securityText(alarm) {
+  if (alarm.kind === 'bind') return ['⚠️ <b>Intentos de vincular grupos</b>', `${alarm.failures} claves mal en /vincular en ${alarm.windowMinutes} minutos, desde ${alarm.origins} cuentas de Telegram.`, 'Cada cuenta tiene 5 intentos por hora y todas juntas 20. Si no fueron ustedes, cambiá SETUP_KEY.'].join('\n');
   const count = `${alarm.failures} ingresos fallidos al salón en ${alarm.windowMinutes} minutos, desde ${alarm.origins} direcciones.`;
   if (alarm.kind === 'frozen') return [`🛑 <b>Ingresos frenados ${alarm.frozenMinutes} minutos</b>`, count, 'Nadie puede entrar de nuevo hasta que pase; las mozas que ya entraron siguen tomando pedidos.', 'Si no fueron ustedes, cambiá STAFF_PIN.'].join('\n');
   return ['⚠️ <b>Intentos de ingreso</b>', count, 'Si no fueron ustedes, cambiá STAFF_PIN.'].join('\n');

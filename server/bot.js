@@ -1,4 +1,4 @@
-import { safeEqual } from './auth.js';
+import { createBindGuard } from './bind-guard.js';
 import { ROLE_ALIASES, ROLE_NAMES, currentNight } from './night.js';
 import { escapeHtml, pendingText, summaryText } from './messages.js';
 
@@ -15,7 +15,7 @@ function helpText(roles, kitchenOnly) {
   return ['<b>Cómo se usa</b>', intro, '', ...roles.map((role) => LINK_HELP[role]), '/estado — qué grupo es cada cosa', ...night].join('\n');
 }
 
-export function createBot({ service, telegram, venue, setupKey, roles = Object.keys(ROLE_NAMES) }) {
+export function createBot({ service, telegram, venue, setupKey, roles = Object.keys(ROLE_NAMES), log = () => {}, bindGuard = createBindGuard({ setupKey, notify: (alarm) => service.securityAlert(alarm), log }) }) {
   const kitchenOnly = !roles.includes('salon') && !roles.includes('owner');
   const reply = (chatId, text, extra = {}) => telegram.call('sendMessage', { chat_id: chatId, text, parse_mode: 'HTML', ...extra });
   const roleOfChat = (chatId) => Object.keys(service.state.bindings).filter((role) => service.state.bindings[role].chatId === chatId);
@@ -33,7 +33,9 @@ export function createBot({ service, telegram, venue, setupKey, roles = Object.k
       await telegram.call('deleteMessage', { chat_id: chatId, message_id: message.message_id }).catch(() => {});
       if (!role) return reply(chatId, 'Decime qué grupo es: salon, pizzas, cocina o dueno. Ejemplo: /vincular salon CLAVE');
       if (!roles.includes(role)) return reply(chatId, kitchenOnly ? `Este bot es solo para ${escapeHtml(roles.map((item) => ROLE_NAMES[item]).join(' y '))}.` : `${escapeHtml(ROLE_NAMES[role])} se vincula con su propio bot.`);
-      if (!setupKey || !safeEqual(parts[1] || '', setupKey)) return reply(chatId, 'La clave no es correcta.');
+      const verdict = bindGuard.check(parts[1] || '', { chatId, fromId: message.from?.id, role });
+      if (verdict === 'LOCKED') return reply(chatId, 'Demasiados intentos con una clave mal. Probá de nuevo en una hora.');
+      if (verdict !== 'OK') return reply(chatId, 'La clave no es correcta.');
       service.bind(role, chatId, message.chat.title || personName(message.from), personName(message.from));
       return reply(chatId, `Listo: este grupo es <b>${escapeHtml(ROLE_NAMES[role])}</b>.`);
     }
