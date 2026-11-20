@@ -15,6 +15,7 @@ export const AUTH_DEFAULTS = {
   alertWindowMs: 10 * MINUTE,
   freezeFailures: 200,
   freezeWindowMs: 60 * MINUTE,
+  freezeOrigins: 20,
   freezeMs: 15 * MINUTE,
 };
 
@@ -26,6 +27,9 @@ function createWindow(windowMs, maxOrigins) {
       current.count += 1;
       if (current.origins.size < maxOrigins) current.origins.add(origin);
       return current;
+    },
+    reset() {
+      current = null;
     },
   };
 }
@@ -65,8 +69,9 @@ export function createAuth({ pin, secret, setupKey = '', now = Date.now, notify 
       notify({ kind: 'attempts', failures: alert.count, origins: alert.origins.size, windowMinutes: limits.alertWindowMs / MINUTE });
     }
     const freeze = freezeWindow.add(at, origin);
-    if (freeze.count >= limits.freezeFailures && frozenUntil <= at) {
+    if (freeze.count >= limits.freezeFailures && freeze.origins.size >= limits.freezeOrigins && frozenUntil <= at) {
       frozenUntil = at + limits.freezeMs;
+      freezeWindow.reset();
       notify({ kind: 'frozen', failures: freeze.count, origins: freeze.origins.size, windowMinutes: limits.freezeWindowMs / MINUTE, frozenMinutes: limits.freezeMs / MINUTE });
     }
   }

@@ -67,24 +67,30 @@ export function parseSuggestion(answer, optionIndex) {
   return { phrase, lines: [...merged].map(([key, quantity]) => ({ key, quantity })) };
 }
 
-export function createSuggester({ advisor, optionIndex, nightLimit, nightNumber, timeoutMs = 6000, log = () => {} }) {
+export function createSuggester({ advisor, optionIndex, nightLimit, tableNightLimit = Math.max(1, Math.ceil(nightLimit / 10)), nightNumber, timeoutMs = 6000, log = () => {} }) {
   const instructions = suggestionInstructions(optionIndex);
   const schema = suggestionSchema(optionIndex);
-  const counts = new Map();
+  let counted = { night: null, total: 0, tables: new Map() };
 
   return {
-    async suggest(text) {
+    async suggest(text, table = null) {
       const night = nightNumber();
-      if (!counts.has(night)) counts.clear();
-      const used = counts.get(night) || 0;
+      if (counted.night !== night) counted = { night, total: 0, tables: new Map() };
+      const used = counted.total;
+      const tableUsed = counted.tables.get(table) || 0;
       if (used >= nightLimit) {
         log('suggestion', { night, count: used, outcome: 'night_limit' });
         return { error: 'RATE_LIMITED' };
       }
-      counts.set(night, used + 1);
+      if (tableUsed >= tableNightLimit) {
+        log('suggestion', { night, count: used, table, outcome: 'table_limit' });
+        return { error: 'RATE_LIMITED' };
+      }
+      counted.total = used + 1;
+      counted.tables.set(table, tableUsed + 1);
       const answer = await advisor.ask(instructions, text, { schema, timeoutMs, maxTokens: 1500 });
       const suggestion = answer === null ? null : parseSuggestion(answer, optionIndex);
-      log('suggestion', { night, count: used + 1, outcome: suggestion ? 'ok' : 'failed', lines: suggestion ? suggestion.lines.length : 0 });
+      log('suggestion', { night, count: used + 1, table, outcome: suggestion ? 'ok' : 'failed', lines: suggestion ? suggestion.lines.length : 0 });
       return suggestion || { error: 'ADVISOR_FAILED' };
     },
   };

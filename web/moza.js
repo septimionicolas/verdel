@@ -6,7 +6,15 @@ const STORAGE_KEY = 'verdel-staff';
 const content = document.querySelector('#content');
 const escapeHtml = (text) => String(text).replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[char]);
 const optionIndex = buildOptionIndex();
-const code = decodeURIComponent(location.hash.slice(1));
+function readCode() {
+  try {
+    return decodeURIComponent(location.hash.slice(1));
+  } catch {
+    return undefined;
+  }
+}
+
+const code = readCode();
 
 function readSession() {
   try {
@@ -26,6 +34,7 @@ function writeSession(session) {
 const OLD_CODE = 'Este código es de una versión vieja del menú. Pedile al cliente que recargue la página y lo arme de nuevo.';
 
 function readOrder() {
+  if (code === undefined) return { order: undefined };
   if (!code) return { order: null };
   try {
     return { order: priceOrder(optionIndex, decodeOrder(code), VENUE.tableCount) };
@@ -84,7 +93,7 @@ function paint(html) {
 }
 
 function paintLogin(order, message = '') {
-  paint(`${orderCard(order)}<form id="login"><p class="staff-note">Para confirmar pedidos tenés que ingresar. Dura hasta el cierre de la noche.</p><label class="field">Tu nombre<input id="staff-name" autocomplete="given-name" maxlength="24" required value="${escapeHtml(readName())}"></label><label class="field">PIN del salón<input id="staff-pin" type="password" inputmode="numeric" autocomplete="off" maxlength="12" required></label><button class="button" type="submit">Seguir</button>${message}</form>`);
+  paint(`${orderCard(order)}<form id="login"><p class="staff-note">Para confirmar pedidos tenés que ingresar. Dura hasta el cierre de la noche.</p><label class="field">Tu nombre<input id="staff-name" autocomplete="given-name" maxlength="24" required value="${escapeHtml(readName())}"></label><label class="field">PIN del salón<input id="staff-pin" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" required></label><button class="button" type="submit">Seguir</button>${message}</form>`);
   document.querySelector('#login').addEventListener('submit', async (event) => {
     event.preventDefault();
     event.submitter?.setAttribute('disabled', '');

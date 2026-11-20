@@ -116,7 +116,7 @@ async function askFreeRound(form) {
   let lines = [];
   let phrase = '';
   try {
-    const response = await fetch(`${CONFIG.apiBase}/api/suggestions`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text }) });
+    const response = await fetch(`${CONFIG.apiBase}/api/suggestions`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text, table }) });
     if (response.ok) {
       const data = await response.json();
       phrase = typeof data.phrase === 'string' ? data.phrase : '';

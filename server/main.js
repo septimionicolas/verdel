@@ -31,7 +31,7 @@ telegram?.call('getMe').then((me) => (botUsername = me?.username || null)).catch
 const staff = createStaffLogin({ service, auth, telegram, timeZone: VENUE.timeZone, sessionHours: config.staffSessionHours, groupApproval: config.staffGroupApproval, emergencyLogin: config.staffEmergencyLogin, botUsername: () => botUsername, log });
 setInterval(staff.sweep, 30 * 1000).unref();
 const webDir = fileURLToPath(new URL('../web/', import.meta.url));
-const server = createAppServer(createHttpHandler({ service, staff, config, webDir, ready: settings.ready, suggester }));
+const server = createAppServer(createHttpHandler({ service, staff, config, webDir, ready: settings.ready, suggester, log }));
 
 server.listen(config.port, config.host || undefined, () => log('listening', { port: config.port, host: config.host || 'todas', telegram: Boolean(telegram), stationBots: Object.keys(stationTelegrams), advisor: Boolean(advisor), missing: settings.missing, weak: settings.weak }));
 const listen = (client, roles) => pollUpdates(client, createBot({ service, telegram: client, venue: VENUE, setupKey: settings.setupKey, staff, roles }).handleUpdate, { signal: stopper.signal, log });

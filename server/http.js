@@ -3,6 +3,7 @@ import { createServer } from 'node:http';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { createLimiter, clientOrigin } from './limiter.js';
 import { cleanSuggestionText } from './suggestions.js';
+import { VENUE } from '../web/menu.js';
 import { contentKey, decodeOrder } from '../web/order-code.js';
 
 const CONTENT_TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.json': 'application/json; charset=utf-8' };
@@ -17,8 +18,10 @@ const SECURITY_HEADERS = {
   'cross-origin-opener-policy': 'same-origin',
   'permissions-policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
 };
+const API_ROUTES = new Set(['/api/health', '/api/orders', '/api/orders/status', '/api/staff/sessions', '/api/staff/sessions/claim', '/api/staff/sessions/ask', '/api/staff/sessions/emergency', '/api/staff/sessions/end', '/api/suggestions']);
 const ERROR_STATUS = { ORDER_ALREADY_SENT: 409, ORDER_CODE_INVALID: 422, ORDER_CODE_OLD: 422, PRODUCT_UNKNOWN: 422, TABLE_UNKNOWN: 422 };
 const STAFF_STATUS = { PIN_INVALID: 401, KEY_INVALID: 401, SESSION_INVALID: 401, LOCKED: 429, TOO_MANY_REQUESTS: 429, ASK_LIMIT: 429, RATE_LIMITED: 429, NAME_REQUIRED: 422, ALREADY_ASKED: 409, NO_GROUP: 409, REQUEST_DENIED: 403, EMERGENCY_DISABLED: 403, REQUEST_EXPIRED: 410, TELEGRAM_UNAVAILABLE: 503 };
+const FAILED_LOGIN_KINDS = { PIN_INVALID: 'pin', KEY_INVALID: 'key', LOCKED: 'locked' };
 const bearer = (request) => String(request.headers.authorization || '').replace(/^Bearer /, '');
 
 async function readJson(request) {
@@ -38,10 +41,12 @@ export const HTTP_LIMITS = {
   statusPerOrigin: 1200,
   statusPerNonce: 20,
   statusTotal: 3000,
-  suggestionsPerOrigin: 5,
+  suggestionsPerOrigin: 60,
+  suggestionsPerTable: 3,
   ordersPerSession: 30,
   forcePerCode: 3,
   forceWindowMs: 10 * 60 * 1000,
+  failedLoginLogsPerMinute: 60,
   maxKeys: 10000,
 };
 
@@ -60,7 +65,7 @@ export function createAppServer(handler) {
   return Object.assign(createServer(handler), SERVER_TIMEOUTS);
 }
 
-export function createHttpHandler({ service, staff, config, webDir, ready, suggester = null, now = Date.now, limits = {} }) {
+export function createHttpHandler({ service, staff, config, webDir, ready, suggester = null, now = Date.now, limits = {}, log = () => {} }) {
   const root = resolve(webDir);
   const servedConfig = `export const CONFIG = {\n  apiBase: '',\n  showCurrencySign: false,\n  suggestions: ${Boolean(suggester)},\n  allowedQrOrigins: ${JSON.stringify(config.allowedOrigins)},\n};\n`;
   const caps = { ...HTTP_LIMITS, ...limits };
@@ -71,6 +76,7 @@ export function createHttpHandler({ service, staff, config, webDir, ready, sugge
   const statusNonceLimiter = limiter(caps.statusPerNonce);
   const statusTotalLimiter = limiter(caps.statusTotal);
   const suggestionLimiter = limiter(caps.suggestionsPerOrigin);
+  const suggestionTableLimiter = limiter(caps.suggestionsPerTable);
   const orderLimiter = limiter(caps.ordersPerSession);
   const forceLimiter = limiter(caps.forcePerCode, caps.forceWindowMs);
   const credentials = (body) => ({ requestId: body.requestId, claimSecret: body.claimSecret });
@@ -84,6 +90,13 @@ export function createHttpHandler({ service, staff, config, webDir, ready, sugge
     '/api/staff/sessions/emergency': async (body, request, origin) => [201, await staff.emergency({ ...credentials(body), setupKey: body.setupKey, origin })],
     '/api/staff/sessions/end': (body, request) => (staff.end(bearer(request)) ? [204, null] : [401, { error: 'SESSION_INVALID' }]),
   };
+  const failedLoginLog = limiter(caps.failedLoginLogsPerMinute);
+
+  function logStaffOutcome(body, origin, status, result) {
+    const kind = FAILED_LOGIN_KINDS[result?.error];
+    if (kind && failedLoginLog.take('all')) log('staff_login_failed', { name: String(body.name || '').trim().slice(0, 24) || null, origin, kind });
+    if (status === 201 && result?.token) log('staff_login', { name: result.name, origin });
+  }
   const limited = (response, headers) => send(response, 429, { error: 'RATE_LIMITED' }, { ...headers, 'cache-control': 'no-store' });
 
   function send(response, status, body, headers = {}) {
@@ -123,7 +136,10 @@ export function createHttpHandler({ service, staff, config, webDir, ready, sugge
         if (!staticLimiter.take(origin)) return limited(response);
         return await serveStatic(url.pathname, response);
       }
-      if (!apiLimiter.take(origin)) return limited(response, cors);
+      const token = bearer(request);
+      const session = request.method === 'POST' && url.pathname === '/api/orders' ? staff.verify(token) : null;
+      const route = API_ROUTES.has(url.pathname) ? url.pathname : '/api/*';
+      if (!session && !apiLimiter.take(`${origin} ${route}`)) return limited(response, cors);
       if (request.method === 'OPTIONS') return send(response, 204, '', cors);
       if (request.method === 'GET' && url.pathname === '/api/health') {
         return send(response, 200, { ok: true, ready }, cors);
@@ -141,9 +157,13 @@ export function createHttpHandler({ service, staff, config, webDir, ready, sugge
       if (url.pathname === '/api/suggestions') {
         if (!suggester) return send(response, 503, { error: 'ADVISOR_OFF' }, cors);
         if (!suggestionLimiter.take(origin)) return limited(response, cors);
-        const text = cleanSuggestionText((await readJson(request))?.text);
+        const body = await readJson(request);
+        const text = cleanSuggestionText(body?.text);
         if (!text) return send(response, 422, { error: 'TEXT_REQUIRED' }, cors);
-        const result = await suggester.suggest(text);
+        const table = body.table ?? null;
+        if (table !== null && !(Number.isInteger(table) && table >= 0 && table <= VENUE.tableCount)) return send(response, 422, { error: 'TABLE_UNKNOWN' }, cors);
+        if (!suggestionTableLimiter.take(`${origin} ${table ?? '-'}`)) return limited(response, cors);
+        const result = await suggester.suggest(text, table);
         if (result.error) return send(response, result.error === 'RATE_LIMITED' ? 429 : 502, { error: result.error }, cors);
         return send(response, 200, result, { ...cors, 'cache-control': 'no-store' });
       }
@@ -153,13 +173,12 @@ export function createHttpHandler({ service, staff, config, webDir, ready, sugge
       const staffRoute = staffRoutes[url.pathname];
       if (staffRoute) {
         const [status, result] = await staffRoute(body, request, origin);
+        logStaffOutcome(body, origin, status, result);
         if (result?.error) return send(response, STAFF_STATUS[result.error] || 422, { error: result.error }, { ...cors, 'cache-control': 'no-store' });
         return send(response, status, status === 204 ? '' : result, { ...cors, 'cache-control': 'no-store' });
       }
 
       if (url.pathname === '/api/orders') {
-        const token = bearer(request);
-        const session = staff.verify(token);
         if (!session) return send(response, 401, { error: 'SESSION_INVALID' }, cors);
         const code = String(body.code || '');
         const force = body.force === true;

@@ -2,7 +2,7 @@
 
 Prefijo `/api`. JSON en UTF-8. La plata va en centavos enteros. Los errores devuelven `{ "error": "CODIGO" }`. Toda respuesta, también los errores y los archivos de la carta, lleva las cabeceras de seguridad de D21 en `docs/decisiones.md`; las de la API, `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`.
 
-Tope general por origen: 2.000 pedidos por minuto a `/api/` y otros 2.000 a los archivos de la carta. Pasado el tope, `429 RATE_LIMITED` con `Cache-Control: no-store`, en cualquier ruta. Todos los celulares del bar salen por la misma dirección del wifi: los topes por origen están medidos para el bar lleno, no para un celular.
+Tope general por origen: 2.000 pedidos por minuto a cada ruta de `/api/` (las rutas que no existen comparten uno) y otros 2.000 a los archivos de la carta. Pasado el tope, `429 RATE_LIMITED` con `Cache-Control: no-store` en esa ruta; las otras siguen. `POST /api/orders` con un ingreso válido no cuenta para este tope: lo frena solo el tope por ingreso, así un celular que inunda la API desde el wifi del bar no deja a las mozas sin confirmar. Todos los celulares del bar salen por la misma dirección del wifi: los topes por origen están medidos para el bar lleno, no para un celular.
 
 ## `GET /api/health`
 
@@ -14,14 +14,14 @@ No es parte de `/api`, pero la sirve el servidor en lugar de `web/config.js`: `a
 
 ## Ingreso de las mozas: `POST /api/staff/sessions` y sus pasos
 
-Lo usa `moza.html`. El ingreso dura un turno: hasta el cierre de la noche o `STAFF_SESSION_HOURS` (12 por defecto), lo que llegue primero. La identidad la da Telegram; el PIN solo filtra la entrada (D28 y D29 en `docs/decisiones.md`, diseño completo en `docs/seguridad/diseno-ingreso.md`).
+Lo usa `moza.html`. El campo del PIN acepta letras y números sin largo máximo, igual que `STAFF_PIN`: un teclado numérico o un tope de caracteres dejaría afuera a un PIN válido. El ingreso dura un turno: hasta el cierre de la noche o `STAFF_SESSION_HOURS` (12 por defecto), lo que llegue primero. La identidad la da Telegram; el PIN solo filtra la entrada (D28 y D29 en `docs/decisiones.md`, diseño completo en `docs/seguridad/diseno-ingreso.md`).
 
 ### `POST /api/staff/sessions`
 
 - Pide `{ "name": "Ana", "pin": "…" }`. El nombre se recorta a 24 caracteres.
 - `202 { "requestId": "…", "claimSecret": "…", "botLink": "https://t.me/<bot>?start=in_<requestId>", "matchCode": "47", "expiresAt": "…", "groupApproval": true, "emergency": true }`. No crea ninguna sesión: abre un pedido de ingreso que vive solo en memoria y vence a los 3 minutos. `claimSecret` lo recibe solo ese navegador; el servidor guarda su hash. `botLink` es `null` si el bot no respondió `getMe` al arrancar o si no hay grupo salon ni owner vinculado; `groupApproval` es `false` si `STAFF_GROUP_APPROVAL=false` o no hay grupo; `emergency` refleja `STAFF_EMERGENCY_LOGIN`.
 - `401 PIN_INVALID`, `422 NAME_REQUIRED`, `429 LOCKED`, `429 TOO_MANY_REQUESTS` (ya hay 5 pedidos pendientes desde ese origen o 30 en total), `503 NOT_CONFIGURED`.
-- `429 LOCKED` sale tras 5 PIN mal desde el mismo origen (5 minutos, el doble en cada bloqueo seguido, hasta 1 hora) o durante el freno general (15 minutos tras 200 fallidos en 1 hora entre todos los orígenes). Es la misma respuesta en los dos casos y para cualquier celular detrás de esa dirección; mientras dura, el PIN no se prueba. Los ingresos ya dados siguen andando (D23) y `/desbloquear` en el grupo owner lo levanta.
+- `429 LOCKED` sale tras 5 PIN mal desde el mismo origen (5 minutos, el doble en cada bloqueo seguido, hasta 1 hora) o durante el freno general (15 minutos tras 200 fallidos en 1 hora desde 20 orígenes o más; al vencer, la cuenta empieza de cero). Es la misma respuesta en los dos casos y para cualquier celular detrás de esa dirección; mientras dura, el PIN no se prueba. Los ingresos ya dados siguen andando (D23) y `/desbloquear` en el grupo owner lo levanta.
 - `401 PIN_INVALID` es igual para un PIN mal con cualquier nombre: la respuesta no dice si falló el nombre, la clave o un bloqueo ajeno.
 
 ### `POST /api/staff/sessions/claim`
@@ -89,9 +89,9 @@ La usa la carta (`web/app.js`) mientras muestra el código y después, para segu
 
 La usa la carta (`web/app.js`) en «O contanos con tus palabras», debajo de «¿Qué tomamos?». Sin ingreso. La carta muestra el campo solo si su `config.js` dice `suggestions: true`: el servidor la sirve así cuando hay `ANTHROPIC_API_KEY`.
 
-- Pide `{ "text": "somos 5, uno no toma, 40 lucas" }`: de 1 a 200 caracteres después de recortar espacios.
+- Pide `{ "text": "somos 5, uno no toma, 40 lucas", "table": 7 }`: `text` de 1 a 200 caracteres después de recortar espacios; `table` es la mesa de la carta (0 es la barra, hasta `VENUE.tableCount`), o `null` o ausente si el cliente todavía no la eligió.
 - `200 { "phrase": "Dos Norte de 2 litros y una gaseosa para el que no toma.", "lines": [{ "key": "no1", "quantity": 2 }, { "key": "ga1", "quantity": 1 }] }`. Cada `key` existe en la carta, `quantity` es un entero de 1 a 9, hay de 1 a 8 líneas y `phrase` es texto plano de hasta 160 caracteres. No trae precios: el total lo calcula la carta con `web/menu.js`.
-- `422 TEXT_REQUIRED` (vacío o de más de 200 caracteres), `429 RATE_LIMITED` (más de 5 por minuto desde el mismo origen, o se llegó a `ADVISOR_NIGHT_LIMIT` en la noche, sumando todas las mesas), `503 ADVISOR_OFF` (no hay `ANTHROPIC_API_KEY`), `502 ADVISOR_FAILED` (el modelo no respondió algo válido o tardó más de 6 s).
+- `422 TEXT_REQUIRED` (vacío o de más de 200 caracteres), `422 TABLE_UNKNOWN` (`table` no es un entero de 0 a `VENUE.tableCount`), `429 RATE_LIMITED` (más de 3 por minuto desde la misma mesa y origen, más de 60 por minuto desde el mismo origen, la mesa ya usó su parte de la noche, un décimo de `ADVISOR_NIGHT_LIMIT`, o se llegó a `ADVISOR_NIGHT_LIMIT` sumando todas las mesas; los clientes sin mesa comparten una sola parte), `503 ADVISOR_OFF` (no hay `ANTHROPIC_API_KEY`), `502 ADVISOR_FAILED` (el modelo no respondió algo válido o tardó más de 6 s).
 - El texto del cliente no se guarda ni en el log ni en `events.jsonl`; el log lleva solo conteos.
 
 ## Lo que no pasa por la API

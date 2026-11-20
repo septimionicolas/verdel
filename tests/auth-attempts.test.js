@@ -38,3 +38,21 @@ test('una inundación de orígenes frena los ingresos un rato y después la moza
   now += 15 * 60 * 1000;
   assert.ok(auth.checkPin('birra-fria-26', 'celular-de-caro').ok);
 });
+
+test('cuando vence el freno general, un fallido más no lo vuelve a poner y la moza entra', () => {
+  let now = 0;
+  const alarms = [];
+  const auth = createAuth({ ...keys, now: () => now, notify: (alarm) => alarms.push(alarm.kind) });
+  for (let index = 0; index < 200; index++) auth.checkPin('0000', `10.0.${index >> 8}.${index & 255}`);
+  assert.equal(auth.checkPin(keys.pin, 'celular-de-caro').error, 'LOCKED');
+  now += 15 * 60 * 1000;
+  assert.equal(auth.checkPin('0000', '10.9.9.9').error, 'PIN_INVALID');
+  assert.ok(auth.checkPin(keys.pin, 'celular-de-caro').ok);
+  assert.equal(alarms.filter((kind) => kind === 'frozen').length, 1);
+});
+
+test('muchos fallidos desde pocas direcciones no frenan a todo el bar', () => {
+  const auth = createAuth({ ...keys, now: () => 0, maxAttempts: 1000 });
+  for (let index = 0; index < 300; index++) auth.checkPin('0000', `10.0.0.${index % 5}`);
+  assert.ok(auth.checkPin(keys.pin, 'celular-de-caro').ok);
+});

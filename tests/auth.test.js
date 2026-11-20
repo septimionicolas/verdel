@@ -35,7 +35,7 @@ test('la clave de instalación mal suma al mismo bloqueo que el PIN', () => {
 });
 
 test('desbloquear levanta los bloqueos por origen y el freno general', () => {
-  const auth = createAuth({ ...keys, now: () => 0, freezeFailures: 6 });
+  const auth = createAuth({ ...keys, now: () => 0, freezeFailures: 6, freezeOrigins: 2 });
   for (let attempt = 0; attempt < 6; attempt++) auth.checkPin('0000', `ip-${attempt % 2}`);
   assert.equal(auth.checkPin(keys.pin, 'celular-nuevo').error, 'LOCKED');
   auth.unlockAll();
