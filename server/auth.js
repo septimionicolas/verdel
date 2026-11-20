@@ -3,9 +3,18 @@ import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 const digest = (text) => createHash('sha256').update(String(text)).digest();
 export const safeEqual = (a, b) => timingSafeEqual(digest(a), digest(b));
 
-export function createAuth({ pin, secret, now = Date.now, maxAttempts = 5, lockMs = 5 * 60 * 1000, maxAgeMs = 30 * 24 * 60 * 60 * 1000 }) {
+export function createAuth({ pin, secret, now = Date.now, maxAttempts = 5, lockMs = 5 * 60 * 1000, maxAgeMs = 30 * 24 * 60 * 60 * 1000, maxOrigins = 10000 }) {
   const attempts = new Map();
   const sign = (payload) => createHmac('sha256', secret).update(payload).digest('base64url');
+
+  function remember(origin, entry) {
+    attempts.delete(origin);
+    if (attempts.size >= maxOrigins) {
+      for (const [key, old] of attempts) if (entry.at - old.at >= lockMs) attempts.delete(key);
+    }
+    if (attempts.size >= maxOrigins) attempts.delete(attempts.keys().next().value);
+    attempts.set(origin, entry);
+  }
 
   return {
     login(candidate, name, origin) {
@@ -13,7 +22,7 @@ export function createAuth({ pin, secret, now = Date.now, maxAttempts = 5, lockM
       if (entry && entry.count >= maxAttempts && now() - entry.at < lockMs) return { error: 'LOCKED' };
       if (!pin || !safeEqual(candidate, pin)) {
         const expired = entry && now() - entry.at >= lockMs;
-        attempts.set(origin, { count: entry && !expired ? entry.count + 1 : 1, at: now() });
+        remember(origin, { count: entry && !expired ? entry.count + 1 : 1, at: now() });
         return { error: 'PIN_INVALID' };
       }
       attempts.delete(origin);

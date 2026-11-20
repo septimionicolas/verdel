@@ -34,7 +34,7 @@ Tomadas con Septimio el 14-11-2026. Cada una dice qué se decidió y por qué.
 | Mismo código de pedido repetido | Avisa si pasaron menos de 10 minutos; la moza puede enviarlo igual | `findDuplicate` en `server/night.js` |
 | Telegram no responde | 3 reintentos, a 1, 2 y 4 s; si se agotan, 30 s sin reintentar o hasta que Telegram vuelva a contestar | `createTelegram` en `server/telegram.js` |
 | Claves | `STAFF_PIN` de 8 caracteres o más (12 o más si son solo números), sin claves de fábrica (1234, 0000, password, admin, verdel, changeme…), sin un carácter repetido ni escaleras (12345678, abcdefgh); `SETUP_KEY` de 16 o más; `SESSION_SECRET` de 32 o más; ninguna igual a otra | `weakSettings` en `server/config.js` |
-| PIN mal | 5 intentos por origen, 5 minutos de bloqueo | `createAuth` en `server/auth.js` |
+| PIN mal | 5 intentos por origen, 5 minutos de bloqueo; recuerda hasta 10.000 orígenes: al llenarse barre los vencidos y, si no alcanza, olvida el que falló hace más tiempo | `createAuth` en `server/auth.js` |
 | Consultas sin ingreso (estado del pedido) | 40 por minuto por origen | `createHttpHandler` en `server/http.js` |
 | Seguimiento en la carta | Pregunta cada 5 s hasta que la moza confirma y cada 8 s después; 30 s si el servidor frena; se rinde a la hora | Constantes al principio de `web/app.js` |
 | Párrafo del cierre | Hasta 500 caracteres; si el modelo tarda más de 8 s, no se manda | `createAdvisor` en `server/advisor.js` y `server/narrative.js` |
