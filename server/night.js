@@ -9,8 +9,46 @@ function newNight(number) {
 }
 
 export function initialState() {
-  return { bindings: {}, nights: [newNight(1)] };
+  return { bindings: {}, nights: [newNight(1)], sessions: {} };
 }
+
+function endSession(session, at, reason) {
+  if (!session.endedAt) Object.assign(session, { endedAt: at, endReason: reason });
+}
+
+const endOpenSessions = (state, at, reason) => Object.values(state.sessions).forEach((session) => endSession(session, at, reason));
+
+export function findSession(state, tokenHash, nowMs) {
+  const session = Object.hasOwn(state.sessions, tokenHash) ? state.sessions[tokenHash] : null;
+  return session && !session.endedAt && nowMs < Date.parse(session.expiresAt) ? session : null;
+}
+
+export const openSessions = (state, nowMs) => Object.values(state.sessions).filter((session) => !session.endedAt && nowMs < Date.parse(session.expiresAt));
+
+const SESSION_EVENTS = {
+  staff_session_started(state, event) {
+    state.sessions[event.tokenHash] = {
+      sessionId: event.sessionId,
+      tokenHash: event.tokenHash,
+      name: event.name,
+      telegramUserId: event.telegramUserId ?? null,
+      telegramName: event.telegramName ?? null,
+      method: event.method,
+      approvedBy: event.approvedBy ?? null,
+      startedAt: event.at,
+      expiresAt: event.expiresAt,
+      endedAt: null,
+      endReason: null,
+    };
+  },
+  staff_session_ended(state, event) {
+    const session = Object.values(state.sessions).find((candidate) => candidate.sessionId === event.sessionId);
+    if (session) endSession(session, event.at, event.reason);
+  },
+  staff_sessions_ended_all(state, event) {
+    endOpenSessions(state, event.at, 'all');
+  },
+};
 
 export const currentNight = (state) => state.nights[state.nights.length - 1];
 
@@ -35,6 +73,7 @@ export function applyEvent(state, event) {
       lines: event.lines,
       totalCents: event.totalCents,
       staff: event.staff,
+      sessionId: event.sessionId ?? null,
       code: event.code,
       confirmedAt: event.at,
       status: 'open',
@@ -51,7 +90,12 @@ export function applyEvent(state, event) {
     const night = currentNight(state);
     night.closedAt = event.at;
     night.closedBy = event.by;
+    endOpenSessions(state, event.at, 'night_closed');
     state.nights.push(newNight(night.number + 1));
+    return state;
+  }
+  if (Object.hasOwn(SESSION_EVENTS, event.type)) {
+    SESSION_EVENTS[event.type](state, event);
     return state;
   }
   const order = findOrder(state, event.orderId);
