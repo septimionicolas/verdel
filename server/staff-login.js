@@ -13,6 +13,7 @@ export const STAFF_LOGIN_LIMITS = {
   claimsPerMinute: 60,
   asksPerWindow: 6,
   askWindowMs: 10 * MINUTE,
+  fullAlertMs: 30 * MINUTE,
   maxNameLength: 24,
 };
 
@@ -37,6 +38,7 @@ export function createStaffLogin({ service, auth, telegram = null, timeZone, now
   const time = clockLabel(timeZone);
   let askAlerted = false;
   let fullAlerted = false;
+  let fullAlertAtMs = null;
 
   const verifierRole = () => ['salon', 'owner'].find((role) => service.chatOf(role));
   const live = (entry) => entry && entry.expiresAtMs > now();
@@ -70,6 +72,15 @@ export function createStaffLogin({ service, auth, telegram = null, timeZone, now
     entry.state = 'approved';
   }
 
+  function alertFull() {
+    const at = now();
+    if (fullAlerted || (fullAlertAtMs !== null && at - fullAlertAtMs < caps.fullAlertMs)) return;
+    fullAlerted = true;
+    fullAlertAtMs = at;
+    const origins = new Set([...pending.values()].map((entry) => entry.origin)).size;
+    service.securityAlert({ kind: 'full', failures: pending.size, origins });
+  }
+
   function request({ name, pin, origin, userAgent }) {
     const cleanName = String(name || '').trim().slice(0, caps.maxNameLength);
     if (!cleanName) return { error: 'NAME_REQUIRED' };
@@ -77,14 +88,11 @@ export function createStaffLogin({ service, auth, telegram = null, timeZone, now
     if (checked.error) return checked;
     sweep();
     const fromOrigin = [...pending.values()].filter((entry) => entry.origin === origin).length;
+    if (pending.size <= caps.pendingTotal / 2) fullAlerted = false;
     if (pending.size >= caps.pendingTotal) {
-      if (!fullAlerted) {
-        fullAlerted = true;
-        service.send('owner', `Hay ${pending.size} pedidos de ingreso pendientes y no entra ninguno más. Si no son de ustedes, mandá /desbloquear para vaciarlos y cambiá STAFF_PIN.`);
-      }
+      alertFull();
       return { error: 'TOO_MANY_REQUESTS' };
     }
-    fullAlerted = false;
     if (fromOrigin >= caps.pendingPerOrigin) return { error: 'TOO_MANY_REQUESTS' };
     const requestId = randomBytes(16).toString('base64url');
     const claimSecret = randomBytes(32).toString('base64url');
@@ -233,6 +241,8 @@ export function createStaffLogin({ service, auth, telegram = null, timeZone, now
     sweep,
     unlock: (by) => {
       auth.unlockAll();
+      fullAlerted = false;
+      fullAlertAtMs = null;
       for (const [id, entry] of pending) {
         if (entry.state === 'approved') continue;
         pending.delete(id);

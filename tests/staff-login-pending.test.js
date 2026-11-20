@@ -62,11 +62,48 @@ test('/desbloquear no le saca el ingreso a una moza que ya fue aprobada y todav�
   assert.ok(bar.staff.claim(credentials(asked)).token);
 });
 
-test('después de un ataque que vació los pendientes, un nuevo lleno vuelve a avisar', async () => {
+test('después de un ataque que vació los pendientes, un nuevo lleno media hora más tarde vuelve a avisar', async () => {
   const bar = setup();
   for (let index = 0; index < 30; index++) bar.ask(`Moza ${index}`, `origen-${index}`);
   bar.ask('Caro', 'celular-de-caro');
   bar.clock.now += 4 * MINUTE;
+  for (let index = 0; index < 30; index++) bar.ask(`Moza ${index}`, `otro-${index}`);
+  bar.ask('Caro', 'celular-de-caro');
+  await settle();
+  assert.equal(bar.toOwner().filter((text) => text.includes('pedidos de ingreso pendientes')).length, 1);
+  bar.clock.now += 30 * MINUTE;
+  for (let index = 0; index < 30; index++) bar.ask(`Moza ${index}`, `tercero-${index}`);
+  bar.ask('Caro', 'celular-de-caro');
+  await settle();
+  assert.equal(bar.toOwner().filter((text) => text.includes('pedidos de ingreso pendientes')).length, 2);
+});
+
+test('con los pendientes llenos y rellenados a medida que vencen, el dueño recibe un aviso por media hora y no uno por pedido', async () => {
+  const bar = setup();
+  const step = 6 * 1000;
+  let origin = 0;
+  for (let index = 0; index < 30; index++, bar.clock.now += step) bar.ask('Intruso', `origen-${origin++}`);
+  const alerts = () => bar.toOwner().filter((text) => text.includes('pedidos de ingreso pendientes')).length;
+  for (let elapsed = 0; elapsed < 30 * MINUTE; elapsed += step, bar.clock.now += step) {
+    bar.ask('Intruso', `origen-${origin++}`);
+    assert.equal(bar.ask('Caro', 'celular-de-caro').error, 'TOO_MANY_REQUESTS');
+  }
+  await settle();
+  assert.equal(alerts(), 1);
+  for (let elapsed = 0; elapsed < 30 * MINUTE; elapsed += step, bar.clock.now += step) {
+    bar.ask('Intruso', `origen-${origin++}`);
+    bar.ask('Caro', 'celular-de-caro');
+  }
+  await settle();
+  assert.ok(alerts() <= 2);
+  assert.match(bar.toOwner().find((text) => text.includes('pedidos de ingreso pendientes')), /30 pedidos de ingreso pendientes, desde 30 direcciones/);
+});
+
+test('el aviso de pendientes llenos se vuelve a armar con /desbloquear, aunque no haya pasado la media hora', async () => {
+  const bar = setup();
+  for (let index = 0; index < 30; index++) bar.ask(`Moza ${index}`, `origen-${index}`);
+  bar.ask('Caro', 'celular-de-caro');
+  bar.staff.unlock('Septi');
   for (let index = 0; index < 30; index++) bar.ask(`Moza ${index}`, `otro-${index}`);
   bar.ask('Caro', 'celular-de-caro');
   await settle();
