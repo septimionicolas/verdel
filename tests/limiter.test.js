@@ -18,3 +18,16 @@ test('el mismo celular cuenta para un solo límite aunque entre por bordes disti
   assert.deepEqual(takes, [true, true, false]);
   assert.equal(limiter.take(clientOrigin(request('190.2.2.2, 46.151.194.130'), true)), true);
 });
+
+test('con todas las ventanas vigentes el mapa no pasa de maxKeys y suelta la ventana más vieja', () => {
+  let now = 0;
+  const limiter = createLimiter({ limit: 1, windowMs: 1000, now: () => now, maxKeys: 3 });
+  for (const key of ['a', 'b', 'c', 'd']) {
+    limiter.take(key);
+    now += 1;
+  }
+  assert.equal(limiter.size(), 3);
+  assert.equal(limiter.take('a'), true);
+  assert.equal(limiter.take('c'), false);
+  assert.equal(limiter.take('d'), false);
+});

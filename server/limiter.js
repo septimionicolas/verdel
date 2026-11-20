@@ -15,12 +15,15 @@ export function createLimiter({ limit, windowMs = 60 * 1000, now = Date.now, max
       const at = now();
       let entry = windows.get(key);
       if (!entry || at - entry.start >= windowMs) {
+        windows.delete(key);
         if (windows.size >= maxKeys) sweep(at);
+        if (windows.size >= maxKeys) windows.delete(windows.keys().next().value);
         entry = { start: at, count: 0 };
         windows.set(key, entry);
       }
       entry.count += 1;
       return entry.count <= limit;
     },
+    size: () => windows.size,
   };
 }
