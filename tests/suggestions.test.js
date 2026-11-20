@@ -49,9 +49,11 @@ before(async () => {
 });
 after(() => Object.values(servers).forEach((server) => server.close()));
 
-test('health dice si el asistente está prendido', async () => {
-  assert.equal((await (await fetch(`${bases.on}/api/health`)).json()).advisor, true);
-  assert.equal((await (await fetch(`${bases.off}/api/health`)).json()).advisor, false);
+test('la configuración servida dice si la ronda en texto libre está prendida, y health no cuenta nada más', async () => {
+  const served = async (which) => (await import(`data:text/javascript,${encodeURIComponent(await (await fetch(`${bases[which]}/config.js`)).text())}`)).CONFIG;
+  assert.equal((await served('on')).suggestions, true);
+  assert.equal((await served('off')).suggestions, false);
+  assert.deepEqual(await (await fetch(`${bases.on}/api/health`)).json(), { ok: true, ready: true });
 });
 
 test('una respuesta válida vuelve validada, sin precios y con el texto del cliente solo como mensaje del usuario', async () => {

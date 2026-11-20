@@ -4,7 +4,11 @@ Prefijo `/api`. JSON en UTF-8. La plata va en centavos enteros. Los errores devu
 
 ## `GET /api/health`
 
-Sin ingreso. `200 { ok, ready, telegram, advisor, bound, night, orders }`. `ready` es `false` si falta `STAFF_PIN`, `SETUP_KEY` o `SESSION_SECRET`, o si alguna es débil (ver «Claves» en `docs/decisiones.md`); en ese caso las rutas del salón responden `503 NOT_CONFIGURED`; `advisor` es `true` si hay `ANTHROPIC_API_KEY` (el párrafo del cierre y, más adelante, las sugerencias en texto libre); `bound` lista los grupos vinculados.
+Sin ingreso. `200 { ok, ready }` y nada más: ni grupos vinculados, ni pedidos, ni si hay Telegram o modelo. `ready` es `false` si falta `STAFF_PIN`, `SETUP_KEY` o `SESSION_SECRET`, o si alguna es débil (ver «Claves» en `docs/decisiones.md`); en ese caso las rutas del salón responden `503 NOT_CONFIGURED`.
+
+## `GET /config.js`
+
+No es parte de `/api`, pero la sirve el servidor en lugar de `web/config.js`: `apiBase: ''`, `showCurrencySign` y `suggestions` (`true` si hay `ANTHROPIC_API_KEY`).
 
 ## `POST /api/staff/sessions`
 
@@ -36,7 +40,7 @@ La usa la carta (`web/app.js`) mientras muestra el código y después, para segu
 
 ## `POST /api/suggestions`
 
-La usa la carta (`web/app.js`) en «O contanos con tus palabras», debajo de «¿Qué tomamos?». Sin ingreso. La carta muestra el campo solo si `/api/health` dice `advisor: true`.
+La usa la carta (`web/app.js`) en «O contanos con tus palabras», debajo de «¿Qué tomamos?». Sin ingreso. La carta muestra el campo solo si su `config.js` dice `suggestions: true`: el servidor la sirve así cuando hay `ANTHROPIC_API_KEY`.
 
 - Pide `{ "text": "somos 5, uno no toma, 40 lucas" }`: de 1 a 200 caracteres después de recortar espacios.
 - `200 { "phrase": "Dos Norte de 2 litros y una gaseosa para el que no toma.", "lines": [{ "key": "no1", "quantity": 2 }, { "key": "ga1", "quantity": 1 }] }`. Cada `key` existe en la carta, `quantity` es un entero de 1 a 9, hay de 1 a 8 líneas y `phrase` es texto plano de hasta 160 caracteres. No trae precios: el total lo calcula la carta con `web/menu.js`.

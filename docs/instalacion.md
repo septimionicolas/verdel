@@ -41,7 +41,7 @@ Nuevo proyecto desde el repo, variables del `.env.example` con `TRUST_PROXY=true
 
 ### El asistente (opcional)
 
-Con `ANTHROPIC_API_KEY` cargada, `/cierre` suma un párrafo que cuenta la noche. Sin la clave todo funciona igual que antes. `ADVISOR_MODEL` elige el modelo (por defecto `claude-fable-5-2`), `ANTHROPIC_API_BASE` solo se cambia para pruebas y `ADVISOR_NIGHT_LIMIT` pone un tope de consultas por noche. `curl -s …/api/health` dice `"advisor": true` cuando está andando.
+Con `ANTHROPIC_API_KEY` cargada, `/cierre` suma un párrafo que cuenta la noche. Sin la clave todo funciona igual que antes. `ADVISOR_MODEL` elige el modelo (por defecto `claude-fable-5-2`), `ANTHROPIC_API_BASE` solo se cambia para pruebas y `ADVISOR_NIGHT_LIMIT` pone un tope de consultas por noche. `curl -s …/config.js` dice `suggestions: true` cuando está andando.
 
 ## 3. Vincular los grupos (una vez, desde Telegram)
 

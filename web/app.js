@@ -99,12 +99,8 @@ function paintRound() {
 const FREE_ROUND_ERROR = 'No pudimos armarla ahora. Probá con las tres preguntas.';
 let freeRoundBusy = false;
 
-async function enableFreeRound() {
-  if (!tracking) return;
-  try {
-    const response = await fetch(`${CONFIG.apiBase}/api/health`, { cache: 'no-store' });
-    if (response.ok && (await response.json()).advisor === true) select('#round-free').hidden = false;
-  } catch {}
+function enableFreeRound() {
+  if (tracking && CONFIG.suggestions === true) select('#round-free').hidden = false;
 }
 
 async function askFreeRound(form) {

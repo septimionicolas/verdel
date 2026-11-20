@@ -193,7 +193,7 @@ test('el servidor sirve la carta, su configuración y nada fuera de la carpeta',
   assert.match(await (await fetch(`${base}/config.js`)).text(), /apiBase: ''/);
   assert.equal((await fetch(`${base}/%2e%2e/server/main.js`)).status, 404);
   const health = await (await fetch(`${base}/api/health`, { headers: { origin: 'https://carta.test' } })).json();
-  assert.deepEqual(health.bound, ['salon', 'pizzas', 'house', 'owner']);
+  assert.deepEqual(health, { ok: true, ready: true });
   assert.equal((await fetch(`${base}/api/health`, { headers: { origin: 'https://carta.test' } })).headers.get('access-control-allow-origin'), 'https://carta.test');
   assert.equal((await fetch(`${base}/api/health`, { headers: { origin: 'https://otra.test' } })).headers.get('access-control-allow-origin'), null);
 });

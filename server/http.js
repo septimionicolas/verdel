@@ -1,11 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { createLimiter, clientOrigin } from './limiter.js';
-import { currentNight } from './night.js';
 import { cleanSuggestionText } from './suggestions.js';
 
 const CONTENT_TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.json': 'application/json; charset=utf-8' };
-const SERVED_CONFIG = "export const CONFIG = {\n  apiBase: '',\n  showCurrencySign: false,\n};\n";
 const MAX_BODY_BYTES = 4096;
 const ERROR_STATUS = { ORDER_ALREADY_SENT: 409, ORDER_CODE_INVALID: 422, PRODUCT_UNKNOWN: 422, TABLE_UNKNOWN: 422 };
 
@@ -20,8 +18,9 @@ async function readJson(request) {
   return JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
 }
 
-export function createHttpHandler({ service, auth, config, webDir, ready, advisor = null, suggester = null, now = Date.now }) {
+export function createHttpHandler({ service, auth, config, webDir, ready, suggester = null, now = Date.now }) {
   const root = resolve(webDir);
+  const servedConfig = `export const CONFIG = {\n  apiBase: '',\n  showCurrencySign: false,\n  suggestions: ${Boolean(suggester)},\n};\n`;
   const statusLimiter = createLimiter({ limit: 40, now });
   const suggestionLimiter = createLimiter({ limit: 5, now });
 
@@ -38,7 +37,7 @@ export function createHttpHandler({ service, auth, config, webDir, ready, adviso
   }
 
   async function serveStatic(pathname, response) {
-    if (pathname === '/config.js') return send(response, 200, SERVED_CONFIG, { 'content-type': CONTENT_TYPES['.js'], 'cache-control': 'no-cache' });
+    if (pathname === '/config.js') return send(response, 200, servedConfig, { 'content-type': CONTENT_TYPES['.js'], 'cache-control': 'no-cache' });
     const relative = normalize(decodeURIComponent(pathname === '/' ? '/index.html' : pathname));
     const file = join(root, relative);
     if (file !== root && !file.startsWith(root + sep)) return send(response, 404, { error: 'NOT_FOUND' });
@@ -60,8 +59,7 @@ export function createHttpHandler({ service, auth, config, webDir, ready, adviso
       }
       if (request.method === 'OPTIONS') return send(response, 204, '', cors);
       if (request.method === 'GET' && url.pathname === '/api/health') {
-        const night = currentNight(service.state);
-        return send(response, 200, { ok: true, ready, telegram: Boolean(config.botToken), advisor: Boolean(advisor), bound: Object.keys(service.state.bindings), night: night.number, orders: night.orders.length }, cors);
+        return send(response, 200, { ok: true, ready }, cors);
       }
       if (request.method === 'GET' && url.pathname === '/api/orders/status') {
         if (!statusLimiter.take(clientOrigin(request, config.trustProxy))) return send(response, 429, { error: 'RATE_LIMITED' }, { ...cors, 'cache-control': 'no-store' });
