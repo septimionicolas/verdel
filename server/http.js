@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { createServer } from 'node:http';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { createLimiter, clientOrigin } from './limiter.js';
 import { cleanSuggestionText } from './suggestions.js';
@@ -26,6 +27,12 @@ async function readJson(request) {
     chunks.push(chunk);
   }
   return JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+}
+
+export const SERVER_TIMEOUTS = { headersTimeout: 20000, requestTimeout: 30000, keepAliveTimeout: 15000 };
+
+export function createAppServer(handler) {
+  return Object.assign(createServer(handler), SERVER_TIMEOUTS);
 }
 
 export function createHttpHandler({ service, auth, config, webDir, ready, suggester = null, now = Date.now }) {

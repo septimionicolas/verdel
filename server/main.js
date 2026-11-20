@@ -1,4 +1,3 @@
-import { createServer } from 'node:http';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { VENUE, buildOptionIndex } from '../web/menu.js';
@@ -6,7 +5,7 @@ import { createAdvisor } from './advisor.js';
 import { createAuth } from './auth.js';
 import { createBot } from './bot.js';
 import { readConfig, settingsState } from './config.js';
-import { createHttpHandler } from './http.js';
+import { createAppServer, createHttpHandler } from './http.js';
 import { createService } from './service.js';
 import { createSuggester } from './suggestions.js';
 import { ROLE_NAMES, currentNight } from './night.js';
@@ -27,7 +26,7 @@ const service = createService({ store: openEventStore(config.dataDir), telegram,
 const suggester = advisor ? createSuggester({ advisor, optionIndex: buildOptionIndex(), nightLimit: config.advisorNightLimit, nightNumber: () => currentNight(service.state).number, log }) : null;
 const auth = createAuth({ pin: config.staffPin, secret: config.sessionSecret });
 const webDir = fileURLToPath(new URL('../web/', import.meta.url));
-const server = createServer(createHttpHandler({ service, auth, config, webDir, ready: settings.ready, suggester }));
+const server = createAppServer(createHttpHandler({ service, auth, config, webDir, ready: settings.ready, suggester }));
 
 server.listen(config.port, config.host || undefined, () => log('listening', { port: config.port, host: config.host || 'todas', telegram: Boolean(telegram), stationBots: Object.keys(stationTelegrams), advisor: Boolean(advisor), missing: settings.missing, weak: settings.weak }));
 const listen = (client, roles) => pollUpdates(client, createBot({ service, telegram: client, venue: VENUE, setupKey: settings.setupKey, roles }).handleUpdate, { signal: stopper.signal, log });
