@@ -31,8 +31,10 @@ test('si todos siguen vigentes, se suelta el origen que falló hace más tiempo 
   assert.equal(auth.login('0000', 'Caro', 'primera').error, 'PIN_INVALID');
 });
 
-test('una inundación de orígenes no impide que la moza entre con el PIN', () => {
-  const auth = createAuth(keys);
+test('una inundación de orígenes frena los ingresos un rato y después la moza entra con el PIN', () => {
+  let now = 0;
+  const auth = createAuth({ ...keys, now: () => now });
   for (let index = 0; index < 30000; index++) auth.login('0000', 'Caro', `10.${index >> 16}.${(index >> 8) & 255}.${index & 255}`);
+  now += 15 * 60 * 1000;
   assert.ok(auth.login('birra-fria-26', 'Caro', 'celular-de-caro').token);
 });
