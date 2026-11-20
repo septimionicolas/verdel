@@ -7,8 +7,8 @@ Carta digital de la cervecería Verdel, con pedido por QR, avisos a Telegram y r
 | `web/` | La carta, la página del salón (`moza.html`) y los QR de las mesas (`mesas.html`). Sitio estático, sin paso de compilación |
 | `server/` | Servidor Node sin dependencias: confirma pedidos, habla con Telegram, guarda el registro y arma el reporte |
 | `tests/` | Pruebas con `node:test`, incluida una noche completa contra un Telegram simulado |
-| `docs/` | Decisiones, contrato de la API e instalación |
-| `deploy/` | Instalación en un servidor propio |
+| `docs/` | Decisiones, contrato de la API, instalación y `seguridad/` (respuesta a incidentes) |
+| `deploy/` | Instalación en un servidor propio y respaldo diario |
 
 ## Reglas
 
