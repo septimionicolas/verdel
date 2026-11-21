@@ -13,10 +13,10 @@ test('el PIN correcto da un ingreso que vence y no se puede falsificar', () => {
   assert.equal(auth.verify(session.token), null);
 });
 
-test('cinco PIN mal bloquean ese origen por cinco minutos', () => {
+test('tres PIN mal bloquean ese origen por cinco minutos', () => {
   let now = 0;
   const auth = createAuth({ pin: 'birra-fria-26', secret: 'firma-de-prueba-0123456789abcdef-larga', now: () => now });
-  for (let attempt = 0; attempt < 5; attempt++) assert.equal(auth.login('0000', 'Caro', 'ip').error, 'PIN_INVALID');
+  for (let attempt = 0; attempt < 3; attempt++) assert.equal(auth.login('0000', 'Caro', 'ip').error, 'PIN_INVALID');
   assert.equal(auth.login('birra-fria-26', 'Caro', 'ip').error, 'LOCKED');
   assert.ok(auth.login('birra-fria-26', 'Caro', 'otra-ip').token);
   now += 5 * 60 * 1000;

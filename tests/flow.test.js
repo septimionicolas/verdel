@@ -198,7 +198,7 @@ test('el servidor sirve la carta, su configuración y nada fuera de la carpeta',
   assert.equal((await fetch(`${base}/api/health`, { headers: { origin: 'https://otra.test' } })).headers.get('access-control-allow-origin'), null);
 });
 
-test('cinco PIN mal desde el mismo origen frenan los intentos', async () => {
-  for (let attempt = 0; attempt < 5; attempt++) await post('/api/staff/sessions', { name: 'Caro', pin: '1111' });
+test('tres PIN mal desde el mismo origen frenan los intentos', async () => {
+  for (let attempt = 0; attempt < 3; attempt++) await post('/api/staff/sessions', { name: 'Caro', pin: '1111' });
   assert.equal((await post('/api/staff/sessions', { name: 'Caro', pin: 'birra-fria-26' })).status, 429);
 });
