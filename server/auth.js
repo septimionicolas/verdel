@@ -6,7 +6,7 @@ export const safeEqual = (a, b) => timingSafeEqual(digest(a), digest(b));
 const MINUTE = 60 * 1000;
 
 export const AUTH_DEFAULTS = {
-  maxAttempts: 5,
+  maxAttempts: 3,
   lockMs: 5 * MINUTE,
   maxLockMs: 60 * MINUTE,
   maxAgeMs: 30 * 24 * 60 * MINUTE,
