@@ -149,6 +149,7 @@ export function createService({ store, telegram, stationTelegrams = {}, advisor 
 
   return {
     state,
+    send,
     time,
     stats,
     confirmOrder,

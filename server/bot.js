@@ -7,6 +7,7 @@ const LINK_HELP = {
   pizzas: '/vincular pizzas CLAVE — cocina de pizzas y empanadas',
   house: '/vincular cocina CLAVE — cocina de la casa',
   owner: '/vincular dueno CLAVE — ve todo en vivo y recibe el reporte',
+  socios: '/vincular socios CLAVE — recibe el reporte diario de las 06:00',
 };
 
 function helpText(roles, kitchenOnly) {
@@ -31,7 +32,7 @@ export function createBot({ service, telegram, venue, setupKey, roles = Object.k
     if (command === '/vincular') {
       const role = ROLE_ALIASES[(parts[0] || '').toLowerCase()];
       await telegram.call('deleteMessage', { chat_id: chatId, message_id: message.message_id }).catch(() => {});
-      if (!role) return reply(chatId, 'Decime qué grupo es: salon, pizzas, cocina o dueno. Ejemplo: /vincular salon CLAVE');
+      if (!role) return reply(chatId, 'Decime qué grupo es: salon, pizzas, cocina, dueno o socios. Ejemplo: /vincular salon CLAVE');
       if (!roles.includes(role)) return reply(chatId, kitchenOnly ? `Este bot es solo para ${escapeHtml(roles.map((item) => ROLE_NAMES[item]).join(' y '))}.` : `${escapeHtml(ROLE_NAMES[role])} se vincula con su propio bot.`);
       const verdict = bindGuard.check(parts[1] || '', { chatId, fromId: message.from?.id, role });
       if (verdict === 'LOCKED') return reply(chatId, 'Demasiados intentos con una clave mal. Probá de nuevo en una hora.');

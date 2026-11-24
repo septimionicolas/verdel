@@ -51,7 +51,7 @@ export function createAppServer(handler) {
   return Object.assign(createServer(handler), SERVER_TIMEOUTS);
 }
 
-export function createHttpHandler({ service, auth, config, webDir, ready, suggester = null, now = Date.now, limits = {}, log = () => {} }) {
+export function createHttpHandler({ service, auth, config, webDir, ready, suggester = null, visits = null, now = Date.now, limits = {}, log = () => {} }) {
   const root = resolve(webDir);
   const servedConfig = `export const CONFIG = {\n  apiBase: '',\n  showCurrencySign: false,\n  suggestions: ${Boolean(suggester)},\n  allowedQrOrigins: ${JSON.stringify(config.allowedOrigins)},\n};\n`;
   const caps = { ...HTTP_LIMITS, ...limits };
@@ -81,14 +81,22 @@ export function createHttpHandler({ service, auth, config, webDir, ready, sugges
     return { 'access-control-allow-origin': origin, 'access-control-allow-headers': 'content-type, authorization', 'access-control-allow-methods': 'GET, POST, OPTIONS', vary: 'Origin' };
   }
 
-  async function serveStatic(pathname, response) {
+  // Anonymous random cookie, one per phone: shared bar wifi would merge everyone under one IP.
+  function countVisit(request, pathname) {
+    if (!visits || request.method !== 'GET' || (pathname !== '/' && pathname !== '/index.html') || !/Mozilla/.test(request.headers['user-agent'] || '')) return {};
+    const current = /(?:^|;\s*)vd=([^;]*)/.exec(request.headers.cookie || '')?.[1];
+    const fresh = visits.visit(current);
+    return fresh ? { 'set-cookie': `vd=${fresh}; Max-Age=31536000; Path=/; HttpOnly; Secure; SameSite=Lax` } : {};
+  }
+
+  async function serveStatic(pathname, response, extra = {}) {
     if (pathname === '/config.js') return send(response, 200, servedConfig, { 'content-type': CONTENT_TYPES['.js'], 'cache-control': 'no-cache' });
     const relative = normalize(decodeURIComponent(pathname === '/' ? '/index.html' : pathname));
     const file = join(root, relative);
     if (file !== root && !file.startsWith(root + sep)) return send(response, 404, { error: 'NOT_FOUND' });
     try {
       const content = await readFile(file);
-      return send(response, 200, content, { 'content-type': CONTENT_TYPES[extname(file)] || 'application/octet-stream', 'cache-control': 'no-cache' });
+      return send(response, 200, content, { 'content-type': CONTENT_TYPES[extname(file)] || 'application/octet-stream', 'cache-control': 'no-cache', ...extra });
     } catch {
       return send(response, 404, { error: 'NOT_FOUND' });
     }
@@ -102,7 +110,7 @@ export function createHttpHandler({ service, auth, config, webDir, ready, sugges
       if (!url.pathname.startsWith('/api/')) {
         if (request.method !== 'GET' && request.method !== 'HEAD') return send(response, 405, { error: 'METHOD_NOT_ALLOWED' });
         if (!staticLimiter.take(origin)) return limited(response);
-        return await serveStatic(url.pathname, response);
+        return await serveStatic(url.pathname, response, countVisit(request, url.pathname));
       }
       const token = String(request.headers.authorization || '').replace(/^Bearer /, '');
       const staff = request.method === 'POST' && url.pathname === '/api/orders' ? auth.verify(token) : null;
