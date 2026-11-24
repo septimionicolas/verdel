@@ -114,7 +114,7 @@ test('con clave, el cierre trae un párrafo aparte después del resumen, en el s
   assert.equal(api.requests.length, 1);
   for (const chat of [-1, -4]) {
     const sent = texts(run.calls, chat);
-    assert.match(sent.at(-2), /Vendido: <b>\$ 47\.000<\/b>/);
+    assert.match(sent.at(-2), /Vendido: <b>\$ 61\.000<\/b>/);
     assert.equal(sent.at(-1), 'Noche tranquila: 1 pedido y &lt;la&gt; pizza especial salió en 20 min.');
   }
 });
@@ -126,8 +126,8 @@ test('al modelo le van solo números y productos, nunca nombres del personal', a
   const sent = JSON.stringify(api.requests[0].body);
   for (const name of ['Carolina', 'Pérez', 'Juan', 'Gómez', 'Martina', 'Septimio', 'Nicolás']) assert.ok(!sent.includes(name), name);
   const facts = api.requests[0].body.messages[0].content;
-  assert.match(facts, /Total vendido: \$ 47\.000\./);
-  assert.match(facts, /Norte · 2 litros \(2\)/);
+  assert.match(facts, /Total vendido: \$ 61\.000\./);
+  assert.match(facts, /Norte · 3 litros \(2\)/);
   assert.match(facts, /Cocina de pizzas y empanadas: 1 pedido, 20 min en promedio/);
   assert.match(facts, /Anulados: 1 \(\$ 12\.000\)\./);
 });

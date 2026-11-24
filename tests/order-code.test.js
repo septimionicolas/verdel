@@ -10,8 +10,8 @@ test('un pedido se codifica, se lee y se valoriza con los precios de la carta', 
   assert.equal(code, 'v1.7.no1x2-pe0x1-cp0x1');
   const order = priceOrder(optionIndex, decodeOrder(code), VENUE.tableCount);
   assert.equal(order.table, 7);
-  assert.equal(order.totalCents, 6700000);
-  assert.equal(formatAmount(order.totalCents), '67.000');
+  assert.equal(order.totalCents, 8100000);
+  assert.equal(formatAmount(order.totalCents), '81.000');
   assert.deepEqual(order.lines[2].kitchen, [{ station: 'pizzas', label: 'Pizza común' }]);
   assert.deepEqual(order.lines[0].kitchen, []);
 });
@@ -35,6 +35,6 @@ test('cada promo cuesta menos que sus partes por separado', () => {
     if (entry.option.listCents !== undefined) assert.ok(entry.option.listCents > entry.option.priceCents, entry.name);
   }
   assert.equal(optionIndex.get('em1').option.listCents, 12 * optionIndex.get('em0').option.priceCents);
-  assert.equal(optionIndex.get('no2').option.listCents, 3 * optionIndex.get('no0').option.priceCents);
+  assert.equal(optionIndex.get('no1').option.listCents, 3 * optionIndex.get('no0').option.priceCents);
   assert.equal(optionIndex.get('cp0').option.listCents, optionIndex.get('pc0').option.priceCents + optionIndex.get('no0').option.priceCents);
 });

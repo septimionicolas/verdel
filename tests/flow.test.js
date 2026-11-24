@@ -81,11 +81,11 @@ test('sin ingreso no se confirma nada y el PIN da el ingreso', async () => {
 test('el pedido confirmado llega al salón, a cada cocina lo suyo y al dueño', async () => {
   const response = await order('v1.7.no1x2-pe0x1-pa2x1');
   assert.equal(response.status, 201);
-  assert.deepEqual(await response.json(), { number: 1, totalCents: 6000000, telegram: 'sent' });
+  assert.deepEqual(await response.json(), { number: 1, totalCents: 7400000, telegram: 'sent' });
 
   const salon = sentTo(CHATS.salon).at(-1).params;
   assert.match(salon.text, /Mesa 7<\/b> · Pedido #1/);
-  assert.match(salon.text, /Total \$ 60\.000/);
+  assert.match(salon.text, /Total \$ 74\.000/);
   assert.match(salon.text, /Confirmó Caro · 22:10/);
   assert.equal(salon.reply_markup.inline_keyboard[0][0].callback_data, 'charge:1-1');
 
@@ -93,7 +93,7 @@ test('el pedido confirmado llega al salón, a cada cocina lo suyo y al dueño', 
   assert.match(pizzas, /1 × Pizza especial · Entera/);
   assert.doesNotMatch(pizzas, /Norte|Papas|\$/);
   assert.match(sentTo(CHATS.house).at(-1).params.text, /1 × Papas · Yankee/);
-  assert.match(sentTo(CHATS.owner).at(-1).params.text, /Pedido · Mesa 7 · #1 · \$ 60\.000 · confirmó Caro/);
+  assert.match(sentTo(CHATS.owner).at(-1).params.text, /Pedido · Mesa 7 · #1 · \$ 74\.000 · confirmó Caro/);
 });
 
 test('el mismo código dos veces avisa, y con «enviar igual» entra como otro pedido', async () => {
@@ -115,7 +115,7 @@ test('la cocina avisa «Listo» solo desde su grupo y el salón se entera', asyn
   const alert = sentTo(CHATS.salon).at(-1).params;
   assert.match(alert.text, /Listo para retirar<\/b> · Mesa 7 · #1\n1 × Pizza especial · Entera/);
   assert.ok(alert.reply_parameters.message_id);
-  assert.match(sentTo(CHATS.owner).at(-1).params.text, /Listo · Mesa 7 · #1 · \$ 60\.000 · 17 min/);
+  assert.match(sentTo(CHATS.owner).at(-1).params.text, /Listo · Mesa 7 · #1 · \$ 74\.000 · 17 min/);
   assert.ok(calls.some((call) => call.method === 'editMessageText' && /listo 22:27/.test(call.params.text)));
 
   await tap(CHATS.pizzas, 'ready:1-1:pizzas', 'Juan');
@@ -171,11 +171,11 @@ test('el cierre avisa lo que falta cobrar, manda el reporte al dueño y abre otr
   const report = sentTo(CHATS.owner, 'sendDocument').at(-1).params;
   assert.equal(report.fileName, 'cierre-verdel-2026-11-14-noche-1.html');
   assert.match(report.html, /Noche del sábado 14\/11/);
-  assert.match(report.html, /<p class="big">\$ 60\.000<\/p>/);
+  assert.match(report.html, /<p class="big">\$ 74\.000<\/p>/);
   assert.match(report.html, /Quedó 1 sin marcar como cobrado \(\$ 33\.000\)/);
-  assert.match(report.html, /Se anuló 1 \(\$ 60\.000\)/);
+  assert.match(report.html, /Se anuló 1 \(\$ 74\.000\)/);
   assert.match(report.html, /<td>Cocina de pizzas y empanadas<\/td><td>2<\/td><td>2<\/td><td>1<\/td><td>1<\/td><td>17 min<\/td>/);
-  assert.match(sentTo(CHATS.salon).at(-1).params.text, /Vendido: <b>\$ 93\.000<\/b>\nCobrado en caja: \$ 60\.000 \(1\)\nSin cobrar: \$ 33\.000 \(1\)\nAnulados: 1/);
+  assert.match(sentTo(CHATS.salon).at(-1).params.text, /Vendido: <b>\$ 107\.000<\/b>\nCobrado en caja: \$ 74\.000 \(1\)\nSin cobrar: \$ 33\.000 \(1\)\nAnulados: 1/);
 
   assert.equal(service.state.nights.length, 2);
   assert.equal((await (await order('v1.5.fe0x2')).json()).number, 1);
