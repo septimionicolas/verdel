@@ -1,11 +1,13 @@
 // Arma la carta impresa (A3 con 3 mm de sangrado, dos paneles) desde web/menu.js.
 // Uso: node docs/carta-impresa/build.mjs && luego Chrome headless --print-to-pdf.
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { SECTIONS, formatAmount } from '../../web/menu.js';
 import { ART } from '../../web/art.js';
 
 const URL_CARTA = 'https://verdel-production.up.railway.app';
-const byId = Object.fromEntries(SECTIONS.map((s) => [s.id, s]));
+// Logo oficial de Cerveza Norte (foto de perfil de @cerveza.norte): se recorta a la franja del nombre.
+const NORTE = `data:image/png;base64,${readFileSync(new URL('./norte-logo.png', import.meta.url)).toString('base64')}`;
+const byId =Object.fromEntries(SECTIONS.map((s) => [s.id, s]));
 const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 
 // Íconos propios de la impresa: trazo redondo, verde y amarillo cervecero.
@@ -58,7 +60,40 @@ const logo = (id) => `<svg class="logo" viewBox="0 0 640 120" role="img" aria-la
   <text x="110" ${TXT} letter-spacing="6" fill="url(#${id}g)">ERDEL</text>
 </svg>`;
 
-const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Carta Verdel impresa</title>
+const cover = `<div class="panel cover">
+  ${logo('a')}
+  <div class="kind">Cervecería</div>
+  <div class="pair">${section('promos')}${section('beers')}</div>
+  <div class="bottom"><div class="qr"><div id="qr"></div><div><b>Pedí desde la mesa</b><span>Escaneá, elegí y el pedido llega a la barra. La carta del celular siempre tiene los precios al día.</span></div></div>
+  <img class="norte" src="${NORTE}" alt="Cerveza Norte"></div>
+</div>`;
+const menu = `<div class="panel menu">
+  <div class="head">${logo('b')}<span>Carta</span></div>
+  <div class="cols">
+    <div>${section('snacks')}${section('pizzas')}${section('soft')}</div>
+    <div>${section('sandwiches')}${section('drinks')}</div>
+  </div>
+  <div class="foot">Precios en pesos argentinos.</div>
+</div>`;
+
+// A4 suelto (210 × 297 mm, sin sangrado) para imprimir en el local: una hoja por panel, con el contenido
+// repartido a lo ancho para que la letra quede del mismo tamaño que en la A3.
+const A4 = `@page{size:210mm 297mm;margin:0}
+.sheet{width:210mm;height:297mm;padding:0;grid-template-columns:210mm}
+.panel{height:297mm;padding:10mm 11mm 9mm}
+.cover .logo{width:150mm;margin:4mm auto 0}
+.cover .kind{margin:2mm 0 5mm}
+.cover .sec{zoom:1}
+.pair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:4mm;align-items:stretch;flex:1}
+.pair .sec{margin:0;display:flex;flex-direction:column}
+.pair .items{flex:1;display:flex;flex-direction:column;justify-content:space-around}
+.bottom{display:flex;align-items:center;gap:5mm;margin-top:4mm}
+.bottom .qr{flex:1;margin:0}
+.bottom .norte{margin:0;width:52mm;height:20mm}
+.menu .head{margin:1mm 0 4mm}
+.menu .cols{zoom:.9}`;
+
+const html = (panels, extra = '') => `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Carta Verdel impresa</title>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=Archivo+Black&family=Michroma&display=block" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <style>
@@ -100,10 +135,7 @@ body{font-family:Archivo,sans-serif;color:var(--white)}
 #qr svg{width:100%;height:100%;display:block}
 .qr b{display:block;font:400 5.6mm/1.05 'Archivo Black'}
 .qr span{display:block;font:400 3.3mm/1.35 Archivo;color:var(--mist);margin-top:1.4mm}
-.norte{text-align:center;margin-top:6mm}
-.norte .n{font:italic 800 9mm/1 Archivo;font-stretch:90%;color:var(--white);letter-spacing:-.2mm}
-.norte .c{font:600 2.4mm/1 Archivo;letter-spacing:1.2mm;color:var(--gold)}
-.norte .t{font:600 2.6mm/1 Archivo;letter-spacing:1mm;color:var(--gold);border-top:.3mm solid var(--gold);display:inline-block;padding-top:1.2mm;margin-top:1.2mm}
+.norte{display:block;width:44mm;height:17mm;margin:6mm auto 0;object-fit:cover;object-position:50% 50%;border-radius:2.5mm;border:.35mm solid rgba(244,246,255,.35)}
 .menu .head{display:flex;align-items:baseline;justify-content:space-between;margin:2mm 0 5mm}
 .menu .head svg{width:46mm}
 .menu .head span{font:600 3.6mm/1 Archivo;font-stretch:125%;letter-spacing:1.6mm;color:var(--peri);text-transform:uppercase}
@@ -143,25 +175,12 @@ body{font-family:Archivo,sans-serif;color:var(--white)}
 .sec.fizz{background:linear-gradient(0deg,rgba(246,196,67,.20),rgba(246,196,67,.04) 38%,transparent 60%),linear-gradient(180deg,rgba(14,38,34,.9),rgba(10,24,30,.86))}
 .sec.fizz::after{content:"";position:absolute;left:0;right:0;top:0;height:1.6mm;background:repeating-radial-gradient(circle at 2mm 0,rgba(255,250,230,.55) 0 1.1mm,transparent 1.2mm 2.4mm);opacity:.5}
 .foot{text-align:center;font:500 2.9mm/1.3 Archivo;color:var(--mist);margin-top:1mm}
+.cover .bottom{margin-top:auto}
+${extra}
 </style></head><body>
 <div class="sheet">
 <svg id="stars" aria-hidden="true"></svg>
-<div class="panel cover">
-  ${logo('a')}
-  <div class="kind">Cervecería</div>
-  ${section('promos')}
-  ${section('beers')}
-  <div class="qr"><div id="qr"></div><div><b>Pedí desde la mesa</b><span>Escaneá, elegí y el pedido llega a la barra. La carta del celular siempre tiene los precios al día.</span></div></div>
-  <div class="norte"><div class="c">CERVEZA</div><div class="n">Norte</div><div class="t">LA MÁS NUESTRA</div></div>
-</div>
-<div class="panel menu">
-  <div class="head">${logo('b')}<span>Carta</span></div>
-  <div class="cols">
-    <div>${section('snacks')}${section('pizzas')}${section('soft')}</div>
-    <div>${section('sandwiches')}${section('drinks')}</div>
-  </div>
-  <div class="foot">Precios en pesos argentinos.</div>
-</div>
+${panels}
 </div>
 <script>
 // Estrellas con semilla fija: el PDF sale igual cada vez.
@@ -175,9 +194,12 @@ document.querySelectorAll('.sec.fizz').forEach((sec)=>{let b='';
     b+='<circle cx="'+x.toFixed(1)+'%" cy="'+y.toFixed(1)+'%" r="'+(1.2+z*z*5).toFixed(1)+'" fill="'+(z>.7?'none':'rgba(255,236,170,.10)')+'" stroke="rgba(255,236,170,'+(.18+z*.25).toFixed(2)+')" stroke-width=".8"/>'}
   sec.insertAdjacentHTML('afterbegin','<svg class="bub" aria-hidden="true">'+b+'</svg>')});
 const q=qrcode(0,'M');q.addData(${JSON.stringify(URL_CARTA)});q.make();
-document.getElementById('qr').innerHTML=q.createSvgTag({cellSize:4,margin:0,scalable:true});
+const qr=document.getElementById('qr');if(qr)qr.innerHTML=q.createSvgTag({cellSize:4,margin:0,scalable:true});
 </script>
 </body></html>`;
 
-writeFileSync(new URL('./carta-verdel.html', import.meta.url), html);
-console.log('carta-verdel.html escrita');
+const out = (name, text) => writeFileSync(new URL(`./${name}`, import.meta.url), text);
+out('carta-verdel.html', html(cover + menu));
+out('carta-verdel-a4-tapa.html', html(cover, A4));
+out('carta-verdel-a4-carta.html', html(menu, A4));
+console.log('carta-verdel.html y las dos A4 escritas');
