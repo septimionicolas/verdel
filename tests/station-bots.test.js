@@ -46,7 +46,7 @@ test('cada cocina se vincula solo con su bot, y el bot del salón no vincula coc
 });
 
 test('cada cocina recibe lo suyo por su propio bot, y el salón y el dueño por el principal', async () => {
-  const result = await service.confirmOrder({ code: 'v1.7.pe0x1-pa2x1', staff: 'Caro' });
+  const result = await service.confirmOrder({ code: 'v2.aaaaaaaaaaaaaaaaaaaa.7.pe0x1-pa2x1', staff: 'Caro' });
   assert.equal(result.telegram, 'sent');
   assert.match(lastTo('PIZZAS', CHATS.pizzas), /Pizza especial/);
   assert.match(lastTo('HOUSE', CHATS.house), /Papas · Yankee/);

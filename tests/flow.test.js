@@ -8,6 +8,7 @@ import { createBot } from '../server/bot.js';
 import { createHttpHandler } from '../server/http.js';
 import { replay } from '../server/night.js';
 import { createService } from '../server/service.js';
+import { createStaffLogin } from '../server/staff-login.js';
 import { memoryEventStore } from '../server/store.js';
 import { createTelegram } from '../server/telegram.js';
 
@@ -33,16 +34,18 @@ async function fakeFetch(url, options) {
   const isForm = options.body instanceof FormData;
   const params = isForm ? { chat_id: Number(options.body.get('chat_id')), caption: options.body.get('caption'), fileName: options.body.get('document').name, html: await options.body.get('document').text() } : JSON.parse(options.body);
   calls.push({ method, params });
+  if (method === 'getChatMember') return Response.json({ ok: true, result: { status: params.user_id === 7 ? 'member' : 'left' } });
   return Response.json({ ok: true, result: { message_id: ++messageId } });
 }
 
 const telegram = createTelegram({ token: 'TEST', apiBase: 'http://telegram.test', fetchImpl: fakeFetch, sleep });
 const store = memoryEventStore(() => new Date(nowMs));
 const service = createService({ store, telegram, optionIndex: buildOptionIndex(), venue: VENUE, now: () => nowMs, log: (event, detail) => logs.push({ event, ...detail }) });
-const bot = createBot({ service, telegram, venue: VENUE, setupKey: 'clave-de-vincular-2026' });
-const auth = createAuth({ pin: 'birra-fria-26', secret: 'firma-de-prueba-0123456789abcdef-larga', now: () => nowMs });
+const auth = createAuth({ pin: 'birra-fria-26', secret: 'firma-de-prueba-0123456789abcdef-larga', setupKey: 'clave-de-vincular-2026', now: () => nowMs });
+const staff = createStaffLogin({ service, auth, telegram, timeZone: VENUE.timeZone, now: () => nowMs, botUsername: () => 'verdel_bot' });
+const bot = createBot({ service, telegram, venue: VENUE, setupKey: 'clave-de-vincular-2026', staff, now: () => nowMs });
 const config = { botToken: 'TEST', allowedOrigins: ['https://carta.test'], trustProxy: false };
-const server = createServer(createHttpHandler({ service, auth, config, webDir: fileURLToPath(new URL('../web/', import.meta.url)), ready: true }));
+const server = createServer(createHttpHandler({ service, staff, config, webDir: fileURLToPath(new URL('../web/', import.meta.url)), ready: true }));
 let base = '';
 let token = '';
 
@@ -51,6 +54,11 @@ const command = (chat, text) => bot.handleUpdate({ message: { text, chat: { id: 
 const tap = (chat, data, name = 'Caro') => bot.handleUpdate({ callback_query: { id: 'q', from: { first_name: name }, message: { chat: { id: chat }, message_id: 5 }, data } });
 const lastAnswer = () => calls.filter((call) => call.method === 'answerCallbackQuery').at(-1).params.text;
 const post = (path, body, headers = {}) => fetch(`${base}${path}`, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) });
+const caro = { id: 7, first_name: 'Carolina' };
+const confirmInTelegram = async (requestId) => {
+  await bot.handleUpdate({ message: { text: `/start in_${requestId}`, chat: { id: 7, type: 'private' }, message_id: 2, from: caro } });
+  await bot.handleUpdate({ callback_query: { id: 'q', from: caro, message: { chat: { id: 7, type: 'private' }, message_id: 3 }, data: `staffme:${requestId}` } });
+};
 const order = (code, force = false) => post('/api/orders', { code, force }, { authorization: `Bearer ${token}` });
 
 before(async () => {
@@ -70,16 +78,24 @@ test('cada grupo se vincula con la clave y sin ella no', async () => {
   assert.ok(calls.some((call) => call.method === 'deleteMessage'));
 });
 
-test('sin ingreso no se confirma nada y el PIN da el ingreso', async () => {
-  assert.equal((await post('/api/orders', { code: 'v1.7.no1x2' })).status, 401);
+test('sin ingreso no se confirma nada, y el PIN más la confirmación en Telegram dan el ingreso', async () => {
+  assert.equal((await post('/api/orders', { code: 'v2.aaaaaaaaaaaaaaaaaaaa.7.no1x2' })).status, 401);
   assert.equal((await post('/api/staff/sessions', { name: 'Caro', pin: '0000' })).status, 401);
   const response = await post('/api/staff/sessions', { name: 'Caro', pin: 'birra-fria-26' });
-  assert.equal(response.status, 201);
-  token = (await response.json()).token;
+  assert.equal(response.status, 202);
+  const request = await response.json();
+  assert.equal(request.botLink, `https://t.me/verdel_bot?start=in_${request.requestId}`);
+  const credentials = { requestId: request.requestId, claimSecret: request.claimSecret };
+  assert.deepEqual(await (await post('/api/staff/sessions/claim', credentials)).json(), { state: 'pending' });
+  await confirmInTelegram(request.requestId);
+  const claimed = await post('/api/staff/sessions/claim', credentials);
+  assert.equal(claimed.status, 201);
+  token = (await claimed.json()).token;
+  assert.equal((await post('/api/staff/sessions/claim', credentials)).status, 410);
 });
 
 test('el pedido confirmado llega al salón, a cada cocina lo suyo y al dueño', async () => {
-  const response = await order('v1.7.no1x2-pe0x1-pa2x1');
+  const response = await order('v2.aaaaaaaaaaaaaaaaaaaa.7.no1x2-pe0x1-pa2x1');
   assert.equal(response.status, 201);
   assert.deepEqual(await response.json(), { number: 1, totalCents: 7400000, telegram: 'sent' });
 
@@ -96,12 +112,24 @@ test('el pedido confirmado llega al salón, a cada cocina lo suyo y al dueño', 
   assert.match(sentTo(CHATS.owner).at(-1).params.text, /Pedido · Mesa 7 · #1 · \$ 74\.000 · confirmó Caro/);
 });
 
-test('el mismo código dos veces avisa, y con «enviar igual» entra como otro pedido', async () => {
-  const repeated = await order('v1.7.no1x2-pe0x1-pa2x1');
-  assert.equal(repeated.status, 409);
-  assert.equal((await repeated.json()).number, 1);
-  assert.equal((await (await order('v1.7.no1x2-pe0x1-pa2x1', true)).json()).number, 2);
-  assert.equal((await order('v1.7.zz9x1')).status, 422);
+test('el mismo código nunca entra dos veces, ni con «enviar igual»', async () => {
+  for (const force of [false, true]) {
+    const repeated = await order('v2.aaaaaaaaaaaaaaaaaaaa.7.no1x2-pe0x1-pa2x1', force);
+    assert.equal(repeated.status, 409);
+    assert.deepEqual(await repeated.json(), { error: 'ORDER_ALREADY_SENT', number: 1, reason: 'same_code' });
+  }
+  assert.equal(service.state.nights[0].orders.length, 1);
+});
+
+test('otra ronda igual de la misma mesa avisa, y con «enviar igual» entra como otro pedido', async () => {
+  const similar = await order('v2.bbbbbbbbbbbbbbbbbbbb.7.pa2x1-no1x2-pe0x1');
+  assert.equal(similar.status, 409);
+  assert.deepEqual(await similar.json(), { error: 'ORDER_ALREADY_SENT', number: 1, reason: 'similar' });
+  assert.equal((await (await order('v2.bbbbbbbbbbbbbbbbbbbb.7.pa2x1-no1x2-pe0x1', true)).json()).number, 2);
+  assert.equal((await order('v2.cccccccccccccccccccc.7.zz9x1')).status, 422);
+  const old = await order('v1.7.no1x1');
+  assert.equal(old.status, 422);
+  assert.deepEqual(await old.json(), { error: 'ORDER_CODE_OLD' });
 });
 
 test('la cocina avisa «Listo» solo desde su grupo y el salón se entera', async () => {
@@ -158,7 +186,7 @@ test('cobrar y anular se hacen solo desde el salón, y anular pide confirmación
 
 test('el cierre avisa lo que falta cobrar, manda el reporte al dueño y abre otra noche', async () => {
   nowMs += 40 * 60 * 1000;
-  await order('v1.3.he0x1-em1x1');
+  await order('v2.dddddddddddddddddddd.3.he0x1-em1x1');
   await command(CHATS.pizzas, '/cierre');
   assert.match(sentTo(CHATS.pizzas).at(-1).params.text, /grupo del salón o el del dueño/);
 
@@ -178,7 +206,11 @@ test('el cierre avisa lo que falta cobrar, manda el reporte al dueño y abre otr
   assert.match(sentTo(CHATS.salon).at(-1).params.text, /Vendido: <b>\$ 107\.000<\/b>\nCobrado en caja: \$ 74\.000 \(1\)\nSin cobrar: \$ 33\.000 \(1\)\nAnulados: 1/);
 
   assert.equal(service.state.nights.length, 2);
-  assert.equal((await (await order('v1.5.fe0x2')).json()).number, 1);
+  assert.deepEqual(await (await order('v2.eeeeeeeeeeeeeeeeeeee.5.fe0x2')).json(), { error: 'SESSION_INVALID' });
+  const request = await (await post('/api/staff/sessions', { name: 'Caro', pin: 'birra-fria-26' })).json();
+  await confirmInTelegram(request.requestId);
+  token = (await (await post('/api/staff/sessions/claim', { requestId: request.requestId, claimSecret: request.claimSecret })).json()).token;
+  assert.equal((await (await order('v2.eeeeeeeeeeeeeeeeeeee.5.fe0x2')).json()).number, 1);
   assert.equal(service.state.nights[1].orders[0].id, '2-1');
   await tap(CHATS.salon, 'close:1', 'Septi');
   assert.match(lastAnswer(), /ya estaba cerrada/);

@@ -1,7 +1,8 @@
+import { randomBytes } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { decodeOrder, priceOrder } from '../web/order-code.js';
-import { applyEvent, clockLabel, currentNight, findDuplicate, findLatestByCode, findOrder, nightStats, replay, stationsOf, trackingState } from './night.js';
+import { applyEvent, clockLabel, currentNight, findByNonce, findDuplicate, findOrder, findSession, nightStats, openSessions, replay, stationsOf, trackingState } from './night.js';
 import { createLimiter } from './limiter.js';
 import { kitchenKeyboard, kitchenText, orderKeyboard, orderText, ownerLine, readyAlert, securityText, summaryText } from './messages.js';
 import { NARRATIVE_INSTRUCTIONS, narrativeFacts, narrativeMessage } from './narrative.js';
@@ -40,20 +41,24 @@ export function createService({ store, telegram, stationTelegrams = {}, advisor 
     }
   }
 
-  async function confirmOrder({ code, staff, force = false }) {
+  async function confirmOrder({ code, staff, sessionId = null, force = false }) {
+    let decoded;
     let priced;
     try {
-      priced = priceOrder(optionIndex, decodeOrder(code), venue.tableCount);
+      decoded = decodeOrder(code);
+      priced = priceOrder(optionIndex, decoded, venue.tableCount);
     } catch (error) {
       return { error: error.message };
     }
-    const duplicate = force ? null : findDuplicate(state, code, now());
-    if (duplicate) return { error: 'ORDER_ALREADY_SENT', number: duplicate.number };
+    const used = findByNonce(state, decoded.nonce);
+    if (used) return { error: 'ORDER_ALREADY_SENT', number: used.number, reason: 'same_code' };
+    const duplicate = force ? null : findDuplicate(state, decoded, now());
+    if (duplicate) return { error: 'ORDER_ALREADY_SENT', number: duplicate.number, reason: 'similar' };
 
     const night = currentNight(state);
     const number = night.orders.length + 1;
     const orderId = `${night.number}-${number}`;
-    record({ type: 'order_confirmed', orderId, number, table: priced.table, lines: priced.lines, totalCents: priced.totalCents, staff, code });
+    record({ type: 'order_confirmed', orderId, number, table: priced.table, lines: priced.lines, totalCents: priced.totalCents, staff, sessionId, code, nonce: decoded.nonce });
     const order = findOrder(state, orderId);
 
     const sent = await send('salon', orderText(order, time), { reply_markup: orderKeyboard(order) });
@@ -98,17 +103,49 @@ export function createService({ store, telegram, stationTelegrams = {}, advisor 
     record({ type: 'chat_bound', role, chatId, title, by });
   }
 
-  function orderStatus(code, since) {
-    decodeOrder(code);
-    const sinceMs = since ? Date.parse(since) : NaN;
-    const order = findLatestByCode(state, code, Number.isNaN(sinceMs) ? null : sinceMs);
+  function orderStatus(code) {
     const at = new Date(now()).toISOString();
-    return order ? { state: trackingState(order), number: order.number, at } : { state: 'waiting', at };
+    let decoded;
+    try {
+      decoded = decodeOrder(code);
+    } catch (error) {
+      if (error.message === 'ORDER_CODE_OLD') return { state: 'unknown', at };
+      throw error;
+    }
+    const order = findByNonce(state, decoded.nonce);
+    return order && order.code === code ? { state: trackingState(order), number: order.number, at } : { state: 'waiting', at };
   }
 
   async function securityAlert(alarm) {
     const sent = alertLimiter.take('owner') ? await send('owner', securityText(alarm)) : null;
     log('security_alert', { kind: alarm.kind, failures: alarm.failures, origins: alarm.origins, delivered: Boolean(sent) });
+  }
+
+  function startStaffSession({ tokenHash, name, method, hours, telegramUserId = null, telegramName = null, approvedBy = null }) {
+    const nowMs = now();
+    if (telegramUserId !== null) {
+      for (const old of openSessions(state, nowMs).filter((session) => session.telegramUserId === telegramUserId)) {
+        record({ type: 'staff_session_ended', sessionId: old.sessionId, reason: 'replaced', by: name });
+      }
+    }
+    const sessionId = randomBytes(8).toString('hex');
+    const expiresAt = new Date(nowMs + hours * 60 * 60 * 1000).toISOString();
+    const optional = Object.fromEntries(Object.entries({ telegramUserId, telegramName, approvedBy }).filter(([, value]) => value !== null));
+    record({ type: 'staff_session_started', sessionId, tokenHash, name, ...optional, method, expiresAt });
+    return state.sessions[tokenHash];
+  }
+
+  function endStaffSession(sessionId, reason, by) {
+    const session = openSessions(state, now()).find((candidate) => candidate.sessionId === sessionId);
+    if (!session) return false;
+    record({ type: 'staff_session_ended', sessionId, reason, by });
+    return true;
+  }
+
+  function endAllStaffSessions(by) {
+    const count = openSessions(state, now()).length;
+    record({ type: 'staff_sessions_ended_all', by });
+    return count;
   }
 
   const stats = () => nightStats(currentNight(state), venue.timeZone);
@@ -158,6 +195,16 @@ export function createService({ store, telegram, stationTelegrams = {}, advisor 
     bind,
     closeNight,
     securityAlert,
+    send,
+    chatOf,
+    startStaffSession,
+    endStaffSession,
+    endAllStaffSessions,
+    staffSession: (tokenHash) => findSession(state, tokenHash, now()),
+    openStaffSessions: () => openSessions(state, now()),
+    denyStaffLogin: ({ name, by, reason }) => record({ type: 'staff_login_denied', name, by, reason }),
+    recordEmergencyLogin: (sessionId, name) => record({ type: 'staff_login_emergency', sessionId, name }),
+    recordUnlock: (by) => record({ type: 'login_unlocked', by }),
     charge: (orderId, by) => transition(orderId, 'open', 'order_charged', 'charged', by),
     revertCharge: (orderId, by) => transition(orderId, 'charged', 'charge_reverted', 'uncharged', by),
     voidOrder: (orderId, by) => transition(orderId, 'open', 'order_voided', 'voided', by),

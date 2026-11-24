@@ -20,7 +20,7 @@ async function openPage(hash) {
 const pinInput = (html) => html.match(/<input id="staff-pin"[^>]*>/)[0];
 
 test('el campo del PIN acepta letras y no corta claves largas', async () => {
-  const html = await openPage(`#${encodeOrder(3, [{ key: 'no1', quantity: 1 }])}`);
+  const html = await openPage(`#${encodeOrder(3, [{ key: 'no1', quantity: 1 }], 'aaaaaaaaaaaaaaaaaaaa')}`);
   const input = pinInput(html);
   assert.doesNotMatch(input, /maxlength/);
   assert.doesNotMatch(input, /inputmode="numeric"/);
