@@ -14,7 +14,7 @@ const optionIndex = buildOptionIndex();
 const webDir = fileURLToPath(new URL('../web/', import.meta.url));
 const config = { botToken: '', allowedOrigins: [], trustProxy: false };
 let nowMs = Date.parse('2026-11-15T01:10:00Z');
-let answer = () => ({ phrase: 'Dos Norte de 2 litros y una gaseosa para el que no toma.', lines: [{ key: 'no1', quantity: 2 }, { key: 'ga1', quantity: 1 }] });
+let answer = () => ({ phrase: 'Dos Norte de 3 litros y una gaseosa para el que no toma.', lines: [{ key: 'no1', quantity: 2 }, { key: 'ga1', quantity: 1 }] });
 const requests = [];
 const logs = [];
 
@@ -59,11 +59,11 @@ test('la configuración servida dice si la ronda en texto libre está prendida, 
 test('una respuesta válida vuelve validada, sin precios y con el texto del cliente solo como mensaje del usuario', async () => {
   const text = 'somos 5, uno no toma, 40 lucas';
   const result = await ask(`  ${text}  `);
-  assert.deepEqual(result, { status: 200, body: { phrase: 'Dos Norte de 2 litros y una gaseosa para el que no toma.', lines: [{ key: 'no1', quantity: 2 }, { key: 'ga1', quantity: 1 }] } });
+  assert.deepEqual(result, { status: 200, body: { phrase: 'Dos Norte de 3 litros y una gaseosa para el que no toma.', lines: [{ key: 'no1', quantity: 2 }, { key: 'ga1', quantity: 1 }] } });
   const sent = requests.at(-1);
   assert.deepEqual(sent.messages, [{ role: 'user', content: text }]);
   assert.ok(!sent.system.includes(text));
-  assert.match(sent.system, /no1 — Norte · 2 litros — \$ 14\.000/);
+  assert.match(sent.system, /no1 — Norte · 3 litros — \$ 21\.000/);
   assert.equal(sent.output_config.format.type, 'json_schema');
   assert.ok(sent.output_config.format.schema.properties.lines.items.properties.key.enum.includes('ga1'));
   assert.ok(!JSON.stringify(logs).includes('lucas'));

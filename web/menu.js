@@ -27,12 +27,12 @@ export const SECTIONS = [
   {
     id: 'beers',
     title: 'Cervezas',
-    hook: 'De litro. Llevando 2 o 3 pagás menos.',
+    hook: 'De litro. Llevando 3 pagás menos.',
     art: 'bottle',
     items: [
-      { code: 'no', name: 'Norte', options: [{ label: '1 litro', priceCents: pesos(8000) }, { label: '2 litros', priceCents: pesos(14000), listCents: pesos(16000) }, { label: '3 litros', priceCents: pesos(21000), listCents: pesos(24000) }] },
-      { code: 'im', name: 'Imperial', note: 'IPA, Golden o Lager.', options: [{ label: '1 litro', priceCents: pesos(9000) }, { label: '2 litros', priceCents: pesos(16000), listCents: pesos(18000) }, { label: '3 litros', priceCents: pesos(24000), listCents: pesos(27000) }] },
-      { code: 'he', name: 'Heineken', options: [{ label: '1 litro', priceCents: pesos(12000) }, { label: '2 litros', priceCents: pesos(22000), listCents: pesos(24000) }, { label: '3 litros', priceCents: pesos(33000), listCents: pesos(36000) }] },
+      { code: 'no', name: 'Norte', options: [{ label: '1 litro', priceCents: pesos(8000) }, { label: '3 litros', priceCents: pesos(21000), listCents: pesos(24000) }] },
+      { code: 'im', name: 'Imperial', note: 'IPA, Golden o Lager.', options: [{ label: '1 litro', priceCents: pesos(9000) }, { label: '3 litros', priceCents: pesos(24000), listCents: pesos(27000) }] },
+      { code: 'he', name: 'Heineken', options: [{ label: '1 litro', priceCents: pesos(12000) }, { label: '3 litros', priceCents: pesos(33000), listCents: pesos(36000) }] },
       { code: 'sn', name: 'Salta Negra', note: 'De litro.', options: [{ label: '', priceCents: pesos(9000) }] },
       { code: 'nl', name: 'Norte en lata', options: [{ label: '', priceCents: pesos(3500) }] },
     ],
@@ -130,8 +130,8 @@ export const ROUNDS = {
   },
   bitter: {
     phrase: 'Imperial para los que piden amargo: pedila IPA.',
-    snack: { 2: ['im0', 'pa2'], 3: ['im1', 'em1'], 4: ['im2', 'em1', 'pa2'] },
-    meal: { 2: ['im0', 'pe0'], 3: ['im1', 'pe0', 'pa0'], 4: ['im2', 'pe0', 'pn0', 'pa1'] },
+    snack: { 2: ['im0', 'pa2'], 3: ['im1', 'em1'], 4: ['im1', 'em1', 'pa2'] },
+    meal: { 2: ['im0', 'pe0'], 3: ['im1', 'pe0', 'pa0'], 4: ['im1', 'pe0', 'pn0', 'pa1'] },
   },
   none: {
     phrase: 'Sin alcohol y sin quedarse con hambre.',
