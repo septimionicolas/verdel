@@ -202,4 +202,16 @@ const out = (name, text) => writeFileSync(new URL(`./${name}`, import.meta.url),
 out('carta-verdel.html', html(cover + menu));
 out('carta-verdel-a4-tapa.html', html(cover, A4));
 out('carta-verdel-a4-carta.html', html(menu, A4));
-console.log('carta-verdel.html y las dos A4 escritas');
+
+// Variante azul (la paleta original): mismas tarjetas, logo y cerveza; solo cambian el fondo, los bordes y los acentos.
+const AZUL = [
+  ['#06120F', '#070B1F'], ['#0A1C18', '#0C1433'], ['#0A1A1C', '#0B1232'], ['#08151A', '#0A1029'],
+  ['rgba(127,211,106,.30)', 'rgba(142,162,255,.28)'], ['#9BE07F', '#8EA2FF'], ['#7FD36A', '#8EA2FF'],
+  ['#B7C7BC', '#AEB6DA'], ['#2FA35F', '#5B4BD6'], ['rgba(47,163,95,', 'rgba(91,75,214,'], ['#C9DE52', '#8EA2FF'], ['#FFE27A', '#F4F6FF'],
+  ['rgba(20,44,36,.88)', 'rgba(22,30,74,.88)'], ['rgba(10,28,26,.84)', 'rgba(12,20,51,.84)'], ['rgba(4,14,12,.55)', 'rgba(5,9,28,.55)'],
+  ['rgba(14,38,34,.9)', 'rgba(18,26,66,.9)'], ['rgba(10,24,30,.86)', 'rgba(10,16,44,.86)'],
+];
+const azul = (text) => AZUL.reduce((t, [de, a]) => t.split(de).join(a), text);
+out('carta-verdel-a4-tapa-azul.html', azul(html(cover, A4)));
+out('carta-verdel-a4-carta-azul.html', azul(html(menu, A4)));
+console.log('carta-verdel.html y las A4 verdes y azules escritas');
