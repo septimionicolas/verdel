@@ -5,6 +5,7 @@ import { createAdvisor } from './advisor.js';
 import { createAuth } from './auth.js';
 import { createBindGuard } from './bind-guard.js';
 import { createBot } from './bot.js';
+import { createDailyReport, createVisits } from './daily.js';
 import { readConfig, settingsState } from './config.js';
 import { createAppServer, createHttpHandler } from './http.js';
 import { createService } from './service.js';
@@ -27,7 +28,10 @@ const service = createService({ store: openEventStore(config.dataDir), telegram,
 const suggester = advisor ? createSuggester({ advisor, optionIndex: buildOptionIndex(), nightLimit: config.advisorNightLimit, nightNumber: () => currentNight(service.state).number, log }) : null;
 const auth = createAuth({ pin: config.staffPin, secret: config.sessionSecret, notify: (alarm) => service.securityAlert(alarm) });
 const webDir = fileURLToPath(new URL('../web/', import.meta.url));
-const server = createAppServer(createHttpHandler({ service, auth, config, webDir, ready: settings.ready, suggester, log }));
+const visits = createVisits({ file: join(config.dataDir, 'visits.json'), timeZone: VENUE.timeZone });
+const server = createAppServer(createHttpHandler({ service, auth, config, webDir, ready: settings.ready, suggester, visits, log }));
+const daily = createDailyReport({ service, visits, venue: VENUE, file: join(config.dataDir, 'daily.json'), log });
+const dailyTimer = setInterval(() => daily.tick().catch((error) => log('daily_report_failed', { message: error.message })), 60000);
 
 server.listen(config.port, config.host || undefined, () => log('listening', { port: config.port, host: config.host || 'todas', telegram: Boolean(telegram), stationBots: Object.keys(stationTelegrams), advisor: Boolean(advisor), missing: settings.missing, weak: settings.weak }));
 const bindGuard = createBindGuard({ setupKey: settings.setupKey, notify: (alarm) => service.securityAlert(alarm), log });
@@ -38,6 +42,7 @@ for (const [station, client] of Object.entries(stationTelegrams)) listen(client,
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, () => {
     stopper.abort();
+    clearInterval(dailyTimer);
     server.close(() => process.exit(0));
     setTimeout(() => process.exit(0), 3000).unref();
   });

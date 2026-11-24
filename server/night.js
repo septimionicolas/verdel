@@ -1,7 +1,7 @@
 import { STATIONS } from '../web/menu.js';
 
-export const ROLE_NAMES = { salon: 'Salón', pizzas: STATIONS.pizzas, house: STATIONS.house, owner: 'Dueño' };
-export const ROLE_ALIASES = { salon: 'salon', pizzas: 'pizzas', cocina: 'house', dueno: 'owner' };
+export const ROLE_NAMES = { salon: 'Salón', pizzas: STATIONS.pizzas, house: STATIONS.house, owner: 'Dueño', socios: 'Socios' };
+export const ROLE_ALIASES = { salon: 'salon', pizzas: 'pizzas', cocina: 'house', dueno: 'owner', socios: 'socios' };
 const HALF_HOUR_MS = 30 * 60 * 1000;
 
 function newNight(number) {
