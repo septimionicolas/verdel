@@ -41,16 +41,21 @@ function section(id, extra = '') {
   return `<section class="sec${fizz} ${extra}${s.title.length>18?' long':''}" style="flex-grow:${s.items.length}"><header><div><h2>${esc(s.title)}</h2><p>${esc(s.hook)}</p></div>${art(s.art)}</header><div class="items">${s.items.map(item).join('')}</div></section>`;
 }
 
-// VERDEL en Michroma: degradé de cerveza (amarillo arriba, verde abajo) y una veta dorada en el corte de la V.
-const VERDEL = '<text x="0" y="98" font-family="Michroma" font-size="104" letter-spacing="6">VERDEL</text>';
+// VERDEL en Michroma: la V es un vaso servido hasta arriba (cerveza, burbujas y espuma que desborda); ERDEL sigue con el degradé.
+const TXT = 'y="98" font-family="Michroma" font-size="104"';
+const FOAM = [[10,22,8],[22,16,10],[36,13,11],[51,12,12],[66,13,11],[80,16,10],[93,21,8],[30,22,8],[58,21,9],[44,20,8],[73,22,8]];
+const BUBBLES = [[44,44,1.8],[57,52,1.4],[50,64,1.6],[61,36,1.3],[40,32,1.2],[53,76,1.1],[47,56,1]];
 const logo = (id) => `<svg class="logo" viewBox="0 0 640 120" role="img" aria-label="Verdel">
   <defs>
     <linearGradient id="${id}g" x1="0" y1="18" x2="0" y2="100" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#FFE27A"/><stop offset=".42" stop-color="#C9DE52"/><stop offset="1" stop-color="#2FA35F"/></linearGradient>
-    <mask id="${id}m"><rect width="640" height="120" fill="#fff"/><line x1="-6" y1="74" x2="66" y2="40" stroke="#000" stroke-width="6"/></mask>
-    <clipPath id="${id}c">${VERDEL}</clipPath>
+    <linearGradient id="${id}b" x1="0" y1="22" x2="0" y2="98" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#FFD25A"/><stop offset=".55" stop-color="#F4AE25"/><stop offset="1" stop-color="#C9780E"/></linearGradient>
   </defs>
-  <g mask="url(#${id}m)" fill="url(#${id}g)">${VERDEL}</g>
-  <line x1="-6" y1="74" x2="66" y2="40" stroke="#F6C443" stroke-width="1.6" clip-path="url(#${id}c)"/>
+  <path d="M8 22H96L52 96Z" fill="url(#${id}b)"/>
+  <g fill="#FFF4D6">${BUBBLES.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" opacity=".75"/>`).join('')}</g>
+  <text x="0" ${TXT} fill="#F4F6FF" opacity=".92">V</text>
+  <g fill="#FFFDF5">${FOAM.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}"/>`).join('')}</g>
+  <path d="M14 27c6 3 10-1 15 1s9 2 14 0 9 2 14 0 9 1 14-1 8 1 13-1" stroke="#F4E3B0" stroke-width="1.4" fill="none"/>
+  <text x="110" ${TXT} letter-spacing="6" fill="url(#${id}g)">ERDEL</text>
 </svg>`;
 
 const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Carta Verdel impresa</title>
