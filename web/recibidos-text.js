@@ -45,13 +45,14 @@ export function questionMessage(code) {
 }
 
 export function groupMessage(fields, url) {
-  const name = clean(fields.name) || 'alguien del grupo';
-  const when = partyDate(fields.date);
+  const day = partyDate(fields.date);
+  const time = clean(fields.time);
   return [
-    `🎓 ¡Se recibe ${name}! Festejamos en Verdel (Chacabuco y Las Piedras)${when ? ` el ${when}` : ''}.`,
-    `Si somos ${MIN_PEOPLE} o más, la mesa se lleva 2 litros de Norte de regalo 🍺`,
-    `Mirá la promo: ${url}`,
-  ].join('\n');
+    '🎓 ¡Te invito a mi recibida en bar Verdel (Chacabuco y Las Piedras)!',
+    day && `📅 El ${day}${time ? ` a las ${time}` : ''}.`,
+    '¡Te espero para compartir y pasarla lindo! 🍻',
+    url,
+  ].filter(Boolean).join('\n');
 }
 
 export function whatsappLink(phone, text) {

@@ -17,9 +17,10 @@ test('el código del cupón lleva el punto de reparto saneado', () => {
 });
 
 test('el mensaje al grupo invita a Verdel con el enlace medido', () => {
-  const text = groupMessage({ name: 'Sofi', date: '2026-11-28' }, 'https://x.test/recibidos.html?v=wa');
-  assert.match(text, /Se recibe Sofi/);
-  assert.match(text, /sábado 28\/11\/2026/);
+  const text = groupMessage({ name: 'Sofi', date: '2026-11-28', time: '21:30' }, 'https://x.test/recibidos.html?v=wa');
+  assert.match(text, /^🎓 ¡Te invito a mi recibida en bar Verdel \(Chacabuco y Las Piedras\)!/);
+  assert.match(text, /El sábado 28\/11\/2026 a las 21:30/);
+  assert.match(text, /¡Te espero para compartir y pasarla lindo!/);
   assert.match(text, /\?v=wa$/);
 });
 
