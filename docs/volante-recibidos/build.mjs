@@ -30,11 +30,11 @@ body { font-family: Archivo, sans-serif; -webkit-print-color-adjust: exact; prin
 .sheet { width: 210mm; height: 297mm; display: grid; grid-template-columns: 105mm 105mm; grid-template-rows: 148.5mm 148.5mm; page-break-after: always; }
 .sheet:last-child { page-break-after: auto; }
 .card { position: relative; overflow: hidden; }
-.front { color: #F4F6FF; background: radial-gradient(80mm 60mm at 0 0, rgba(47,163,95,.55), transparent 70%), radial-gradient(70mm 60mm at 110% 55%, rgba(246,196,67,.30), transparent 70%), #06120F; padding: 8mm 8mm 6mm; display: flex; flex-direction: column; }
-.logo { width: 46mm; height: auto; display: block; }
-.ask { margin-top: 5mm; font-family: "Archivo Black", sans-serif; font-size: 25pt; line-height: .95; letter-spacing: -.01em; }
+.front { color: #F4F6FF; background: radial-gradient(80mm 60mm at 0 0, rgba(47,163,95,.55), transparent 70%), radial-gradient(70mm 60mm at 110% 55%, rgba(246,196,67,.30), transparent 70%), #06120F; padding: 7mm 8mm 5mm; display: flex; flex-direction: column; }
+.logo { width: 64mm; height: 12mm; flex: none; display: block; }
+.ask { margin-top: 3mm; font-family: "Archivo Black", sans-serif; font-size: 25pt; line-height: .95; letter-spacing: -.01em; }
 .ask small { display: block; margin-top: 1.5mm; font-family: Archivo, sans-serif; font-weight: 700; font-size: 10pt; letter-spacing: 0; color: #B7C7BC; }
-.gift { margin: 5mm 0 3mm; padding: 2.6mm 3mm; border: .35mm solid rgba(127,211,106,.55); border-radius: 3mm; }
+.gift { margin: 4mm 0 2.5mm; padding: 2.6mm 3mm; border: .35mm solid rgba(127,211,106,.55); border-radius: 3mm; }
 .gift b { display: block; font-family: "Archivo Black", sans-serif; font-weight: 400; font-size: 17pt; line-height: 1; color: #F6C443; }
 .gift span { font-weight: 700; font-size: 9pt; color: #F4F6FF; }
 .cta { margin-top: auto; display: grid; grid-template-columns: 31mm 1fr; gap: 3mm; align-items: center; padding: 2.5mm; border-radius: 3mm; background: #FFFDF5; color: #06120F; }
@@ -56,7 +56,7 @@ body { font-family: Archivo, sans-serif; -webkit-print-color-adjust: exact; prin
 .posta p { margin-top: 1mm; font-size: 8.4pt; line-height: 1.3; }
 .foot { margin-top: auto; display: flex; align-items: flex-end; justify-content: space-between; gap: 3mm; font-size: 7pt; line-height: 1.35; }
 .norte { width: 9mm; height: 9mm; background: url(${NORTE}) center / contain no-repeat; }
-.mini { position: relative; margin: 5mm auto 0; width: 44mm; height: 29mm; transform: rotate(-4deg); padding: 3mm; border-radius: 1.5mm; background: linear-gradient(#0A1C18, #06120F); box-shadow: 0 2mm 6mm rgba(0,0,0,.6), 0 0 0 .3mm rgba(127,211,106,.45); text-align: center; }
+.mini { position: relative; margin: 3mm auto 0; width: 44mm; height: 29mm; transform: rotate(-4deg); padding: 3mm; border-radius: 1.5mm; background: linear-gradient(#0A1C18, #06120F); box-shadow: 0 0 0 .3mm rgba(127,211,106,.45), .8mm 1.2mm 0 rgba(0,0,0,.45); text-align: center; }
 .mini i { display: block; font-style: normal; font-weight: 800; font-size: 5pt; color: #B7C7BC; letter-spacing: .08em; }
 .mini b { display: block; margin-top: 1.5mm; font-family: "Archivo Black", sans-serif; font-weight: 400; font-size: 10pt; line-height: 1; }
 .mini strong { display: block; font-family: "Archivo Black", sans-serif; font-weight: 400; font-size: 17pt; line-height: 1.05; color: #F6C443; }
