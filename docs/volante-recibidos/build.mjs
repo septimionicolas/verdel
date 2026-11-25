@@ -32,13 +32,13 @@ body { font-family: Archivo, sans-serif; -webkit-print-color-adjust: exact; prin
 .card { position: relative; overflow: hidden; }
 .front { color: #F4F6FF; background: radial-gradient(80mm 60mm at 0 0, rgba(47,163,95,.55), transparent 70%), radial-gradient(70mm 60mm at 110% 55%, rgba(246,196,67,.30), transparent 70%), #06120F; padding: 7mm 8mm 5mm; display: flex; flex-direction: column; }
 .logo { width: 64mm; height: 12mm; flex: none; display: block; }
-.ask { margin-top: 3mm; font-family: "Archivo Black", sans-serif; font-size: 25pt; line-height: .95; letter-spacing: -.01em; }
+.ask { margin-top: 2mm; font-family: "Archivo Black", sans-serif; font-size: 25pt; line-height: .95; letter-spacing: -.01em; }
 .ask small { display: block; margin-top: 1.5mm; font-family: Archivo, sans-serif; font-weight: 700; font-size: 10pt; letter-spacing: 0; color: #B7C7BC; }
-.gift { margin: 4mm 0 2.5mm; padding: 2.6mm 3mm; border: .35mm solid rgba(127,211,106,.55); border-radius: 3mm; }
+.gift { margin: 2.5mm 0 2mm; padding: 2.6mm 3mm; border: .35mm solid rgba(127,211,106,.55); border-radius: 3mm; }
 .gift b { display: block; font-family: "Archivo Black", sans-serif; font-weight: 400; font-size: 17pt; line-height: 1; color: #F6C443; }
 .gift span { font-weight: 700; font-size: 9pt; color: #F4F6FF; }
-.cta { margin-top: auto; display: grid; grid-template-columns: 31mm 1fr; gap: 3mm; align-items: center; padding: 2.5mm; border-radius: 3mm; background: #FFFDF5; color: #06120F; }
-.cta svg { width: 31mm; height: 31mm; display: block; }
+.cta { margin-top: auto; display: grid; grid-template-columns: 34mm 1fr; gap: 3mm; align-items: center; padding: 2.5mm; border-radius: 3mm; background: #FFFDF5; color: #06120F; }
+.cta svg { width: 34mm; height: 34mm; display: block; }
 .cta strong { display: block; font-family: "Archivo Black", sans-serif; font-weight: 400; font-size: 11.5pt; line-height: 1.02; }
 .cta em { display: block; margin-top: 1.5mm; font-style: normal; font-weight: 600; font-size: 6.4pt; word-break: break-all; color: #40524A; }
 .terms { margin-top: 2.4mm; font-size: 7pt; line-height: 1.3; color: #D5E0D8; }
@@ -56,7 +56,7 @@ body { font-family: Archivo, sans-serif; -webkit-print-color-adjust: exact; prin
 .posta p { margin-top: 1mm; font-size: 8.4pt; line-height: 1.3; }
 .foot { margin-top: auto; display: flex; align-items: flex-end; justify-content: space-between; gap: 3mm; font-size: 7pt; line-height: 1.35; }
 .norte { width: 9mm; height: 9mm; background: url(${NORTE}) center / contain no-repeat; }
-.mini { position: relative; margin: 3mm auto 0; width: 44mm; height: 29mm; transform: rotate(-4deg); padding: 3mm; border-radius: 1.5mm; background: linear-gradient(#0A1C18, #06120F); box-shadow: 0 0 0 .3mm rgba(127,211,106,.45), .8mm 1.2mm 0 rgba(0,0,0,.45); text-align: center; }
+.mini { position: relative; margin: 3.5mm auto 0; width: 44mm; height: 29mm; transform: rotate(-4deg); padding: 3mm; border-radius: 1.5mm; background: linear-gradient(#0A1C18, #06120F); box-shadow: 0 0 0 .3mm rgba(127,211,106,.45), .8mm 1.2mm 0 rgba(0,0,0,.45); text-align: center; }
 .mini i { display: block; font-style: normal; font-weight: 800; font-size: 5pt; color: #B7C7BC; letter-spacing: .08em; }
 .mini b { display: block; margin-top: 1.5mm; font-family: "Archivo Black", sans-serif; font-weight: 400; font-size: 10pt; line-height: 1; }
 .mini strong { display: block; font-family: "Archivo Black", sans-serif; font-weight: 400; font-size: 17pt; line-height: 1.05; color: #F6C443; }
@@ -75,7 +75,7 @@ ${LOGO}
 <h1 class="ask">¿Se recibe tu amiga?<small>¿O tu amigo, tu prima, tu compañero de banco?</small></h1>
 <div class="mini"><i>FESTEJO · VIERNES</i><b>¡SOY LICENCIADA!</b><strong>SOFI</strong><span>ESTE CARTEL VALE 2 L DE NORTE</span></div>
 <div class="gift"><b>2 LITROS DE NORTE</b><span>de regalo para la mesa del festejo</span></div>
-<div class="cta">${qrSvg(url, { dark: '#06120F', light: '#FFFDF5', margin: 2 })}<div><strong>Escaneá y hacé el cartel gratis</strong><em>${SHORT}</em></div></div>
+<div class="cta">${qrSvg(url, { dark: '#06120F', light: '#FFFDF5', margin: 4 })}<div><strong>Escaneá y hacé el cartel gratis</strong><em>${SHORT}</em></div></div>
 <p class="terms"><b>Chacabuco y Las Piedras.</b> ${PROMO_TERMS} · con el cartel Verdel sellado en barra.</p>
 <p class="legal">${LEGAL}</p>
 <span class="tag">${point.toUpperCase()}</span>
