@@ -24,19 +24,24 @@
     <p class="lead">Reservá la mesa para el festejo y la mesa se lleva <strong>2 litros de Norte de regalo</strong>.</p>
   </header>
 
+  <section class="gift" aria-label="Tu regalo">
+    <span class="gift-ribbon">Regalo</span>
+    <span class="spark s1" aria-hidden="true"></span><span class="spark s2" aria-hidden="true"></span><span class="spark s3" aria-hidden="true"></span>
+    <p class="gift-kicker">Para la mesa del festejo</p>
+    <b class="gift-big">2 litros de Norte</b>
+    <p class="gift-free"><span>Gratis</span> en mesas de 4 o más</p>
+    <p class="gift-code">Tu código <span class="code" id="code">VD-WEB-····</span></p>
+    <a class="btn btn-main btn-glow" href="#form">Quiero mi regalo</a>
+  </section>
+
   <section class="benefits" aria-label="Beneficios">
-    <article class="benefit benefit-main">
-      <b>2 litros de Norte</b>
-      <span>de regalo para la mesa del festejo, en mesas de 4 o más.</span>
-    </article>
     <article class="benefit">
       <b>Mesa reservada</b>
       <span>Te guardamos la mesa para todo el grupo el día que elijas.</span>
     </article>
     <article class="benefit">
-      <b>Tu código</b>
-      <span class="code" id="code">VD-WEB-····</span>
-      <span>Va en la reserva. En la barra lo anotamos y sale la promo.</span>
+      <b>Armá la mesa</b>
+      <span id="combos-teaser">Sumá pizza o empanadas con Norte al reservar y te la tenemos lista.</span>
     </article>
   </section>
 
@@ -60,11 +65,16 @@
       <input name="people" type="number" inputmode="numeric" min="1" max="60" value="4" required>
     </label>
     <p class="note" id="people-note" hidden>La promo es para mesas de 4 o más. Igual podés reservar.</p>
+    <fieldset class="extras" id="extras" hidden>
+      <legend>Sumá para la mesa <span class="optional">(opcional, se paga en el bar)</span></legend>
+      <div id="extras-list"></div>
+      <p class="fine">Precios de la carta de hoy. Pueden cambiar.</p>
+    </fieldset>
     <label>Comentario <span class="optional">(opcional)</span>
       <input name="note" maxlength="120" placeholder="Ej.: llegamos después de la defensa">
     </label>
     <div class="actions">
-      <button type="submit" class="btn btn-main">Reservar por WhatsApp</button>
+      <button type="submit" class="btn btn-main btn-glow">Reservar y pedir mi regalo</button>
       <a class="btn" id="call" href="#">Llamar</a>
     </div>
     <p class="hint" id="hint" aria-live="polite">Se abre WhatsApp con la reserva escrita. Solo tenés que enviarla.</p>
@@ -72,7 +82,7 @@
 
   <section class="faq">
     <h2>Preguntas</h2>
-    <details><summary>¿Qué incluye la promo?</summary><p>2 litros de Norte de regalo para la mesa del festejo, si son 4 o más. Una promo por recibido.</p></details>
+    <details><summary>¿Qué incluye la promo?</summary><p>2 litros de Norte de regalo para la mesa del festejo, si son 4 o más. Una promo por recibido. Si querés, al reservar sumás combos de la carta para la mesa.</p></details>
     <details><summary>¿Tengo que llevar algo?</summary><p>No. Reservá con tu código y, al llegar, decí el nombre de la reserva en la barra.</p></details>
     <details><summary>¿Qué días y hasta qué hora?</summary><p>El día del festejo, hasta la 1 de la mañana. Vale hasta el 28/02/2027 o hasta agotar stock.</p></details>
     <details><summary>Tengo otra pregunta</summary><p>Escribinos y te respondemos por WhatsApp.</p><a class="btn" id="ask" href="#">Hacer una consulta</a></details>

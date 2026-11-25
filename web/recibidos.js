@@ -1,4 +1,5 @@
-import { PHONE, MIN_PEOPLE, sourceTag, couponCode, reservationMessage, questionMessage, groupMessage, whatsappLink, clean } from './recibidos-text.js';
+import { SECTIONS, formatAmount } from './menu.js';
+import { PHONE, MIN_PEOPLE, mesaExtras, sourceTag, couponCode, reservationMessage, questionMessage, groupMessage, whatsappLink, clean } from './recibidos-text.js';
 
 const form = document.getElementById('form');
 const hint = document.getElementById('hint');
@@ -7,7 +8,8 @@ const source = sourceTag(location.search);
 const code = couponCode(source, crypto.getRandomValues(new Uint8Array(4)));
 
 function fields() {
-  return Object.fromEntries(new FormData(form));
+  const data = new FormData(form);
+  return { ...Object.fromEntries(data), extras: data.getAll('extra') };
 }
 
 function today() {
@@ -49,6 +51,33 @@ function refresh() {
   document.getElementById('group').href = `https://wa.me/?text=${encodeURIComponent(groupMessage(data))}`;
 }
 
+function renderExtras() {
+  const combos = mesaExtras(SECTIONS);
+  const list = document.getElementById('extras-list');
+  for (const combo of combos) {
+    const label = document.createElement('label');
+    label.className = 'extra';
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.name = 'extra';
+    box.value = combo.name;
+    const name = document.createElement('span');
+    name.textContent = combo.name;
+    const price = document.createElement('span');
+    price.className = 'extra-price';
+    if (combo.listCents > combo.priceCents) {
+      const was = document.createElement('s');
+      was.textContent = formatAmount(combo.listCents);
+      price.append(was, ' ');
+    }
+    price.append(formatAmount(combo.priceCents));
+    label.append(box, name, price);
+    list.append(label);
+  }
+  document.getElementById('extras').hidden = combos.length === 0;
+}
+
+renderExtras();
 const call = document.getElementById('call');
 document.getElementById('code').textContent = code;
 call.hidden = !PHONE;

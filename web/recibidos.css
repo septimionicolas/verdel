@@ -66,8 +66,6 @@ h2 { margin: 0; font-family: "Archivo Black", sans-serif; font-size: 22px; line-
 .benefits { display: grid; gap: 10px; }
 .benefit { display: grid; gap: 4px; font-size: 15px; line-height: 1.4; color: var(--mist); }
 .benefit b { font-family: "Archivo Black", sans-serif; font-weight: 400; font-size: 19px; color: var(--white); }
-.benefit-main { border-color: var(--gold); background: rgba(246, 196, 67, .1); }
-.benefit-main b { font-size: 24px; color: var(--gold); }
 .code { font: 700 22px Michroma, monospace; letter-spacing: .06em; color: var(--peri); }
 
 .form { display: grid; gap: 14px; }
@@ -128,10 +126,85 @@ details p { margin: 8px 0 0; line-height: 1.5; color: var(--mist); }
 details .btn { margin-top: 10px; }
 .fine { margin: 12px 0 0; font-size: 13px; line-height: 1.45; color: var(--mist); }
 
+/* Regalo: lo primero que se ve después del título. */
+.gift {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  padding: 26px 20px 22px;
+  border: 2px solid var(--gold);
+  border-radius: 18px;
+  background:
+    radial-gradient(120% 90% at 100% 0, rgba(246, 196, 67, .32), transparent 60%),
+    linear-gradient(160deg, #1B2A12, #0A1C18 70%);
+  box-shadow: 0 0 0 4px rgba(246, 196, 67, .12), 0 18px 50px rgba(246, 196, 67, .18);
+  animation: glow 2.8s ease-in-out infinite;
+}
+.gift::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 240, 190, .28) 50%, transparent 65%);
+  transform: translateX(-100%);
+  animation: shine 3.6s ease-in-out infinite;
+}
+.gift-ribbon {
+  position: absolute;
+  top: 16px;
+  right: -38px;
+  width: 150px;
+  padding: 6px 0;
+  transform: rotate(35deg);
+  background: var(--gold);
+  color: var(--ink);
+  text-align: center;
+  font: 900 13px Archivo, sans-serif;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+.gift-kicker { margin: 0; font: 400 11px Michroma, sans-serif; letter-spacing: .16em; text-transform: uppercase; color: var(--peri); }
+.gift-big { font-family: "Archivo Black", sans-serif; font-weight: 400; font-size: clamp(38px, 10vw, 64px); line-height: .95; color: var(--gold); text-shadow: 0 0 24px rgba(246, 196, 67, .45); }
+.gift-free { margin: 0; font-size: 17px; font-weight: 700; }
+.gift-free span { display: inline-block; margin-right: 4px; padding: 3px 10px; border-radius: 999px; background: var(--gold); color: var(--ink); font-weight: 900; text-transform: uppercase; letter-spacing: .06em; animation: pop 2.8s ease-in-out infinite; }
+.gift-code { margin: 4px 0 6px; display: grid; gap: 2px; font-size: 13px; color: var(--mist); }
+.gift .btn { width: 100%; }
+.spark { position: absolute; width: 14px; height: 14px; background: var(--gold); clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); animation: twinkle 2.2s ease-in-out infinite; }
+.s1 { top: 22%; right: 18%; }
+.s2 { top: 58%; right: 9%; width: 9px; height: 9px; animation-delay: .7s; }
+.s3 { bottom: 18%; right: 30%; width: 11px; height: 11px; animation-delay: 1.4s; }
+.btn-glow { box-shadow: 0 0 0 0 rgba(246, 196, 67, .55); animation: ring 2.4s ease-out infinite; }
+
+/* Combos para la mesa. */
+.extras { margin: 0; padding: 14px; border: 1px dashed var(--gold); border-radius: 12px; display: grid; gap: 8px; }
+.extras legend { padding: 0 6px; font-weight: 700; font-size: 14px; color: var(--gold); }
+#extras-list { display: grid; gap: 8px; }
+.form label.extra { grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; color: var(--white); cursor: pointer; }
+.form label.extra:has(input:checked) { border-color: var(--gold); background: rgba(246, 196, 67, .12); }
+.extra input { width: 20px; min-height: 20px; accent-color: var(--gold); }
+.extra-price { font-weight: 800; color: var(--gold); white-space: nowrap; }
+.extra-price s { font-weight: 500; color: var(--mist); }
+.extras .fine { margin: 0; }
+
+@keyframes shine { 0%, 55% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+@keyframes glow { 50% { box-shadow: 0 0 0 4px rgba(246, 196, 67, .22), 0 18px 60px rgba(246, 196, 67, .34); } }
+@keyframes pop { 50% { transform: scale(1.08); } }
+@keyframes twinkle { 0%, 100% { opacity: .25; transform: scale(.6) rotate(0); } 50% { opacity: 1; transform: scale(1) rotate(45deg); } }
+@keyframes ring { 0% { box-shadow: 0 0 0 0 rgba(246, 196, 67, .55); } 80%, 100% { box-shadow: 0 0 0 14px rgba(246, 196, 67, 0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .gift, .gift::before, .gift-free span, .spark, .btn-glow { animation: none; }
+  .gift::before { display: none; }
+}
+
 [hidden] { display: none !important; }
 
 @media (min-width: 860px) {
   .page { grid-template-columns: 1fr 1fr; align-items: start; }
-  .intro, .benefits { grid-column: 1 / -1; }
-  .benefits { grid-template-columns: repeat(3, 1fr); }
+  .intro, .gift, .benefits { grid-column: 1 / -1; }
+  .benefits { grid-template-columns: 1fr 1fr; }
+  .gift .btn { width: auto; }
 }
