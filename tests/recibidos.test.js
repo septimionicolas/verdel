@@ -16,12 +16,19 @@ test('el código del cupón lleva el punto de reparto saneado', () => {
   assert.match(couponCode('FA', new Uint8Array([0, 1, 2, 30])), /^VD-FA-[A-Z2-9]{4}$/);
 });
 
-test('el mensaje al grupo invita a Verdel con el enlace medido', () => {
-  const text = groupMessage({ name: 'Sofi', date: '2026-11-28', time: '21:30' }, 'https://x.test/recibidos.html?v=wa');
-  assert.match(text, /^🎓 ¡Te invito a mi recibida en bar Verdel \(Chacabuco y Las Piedras\)!/);
-  assert.match(text, /El sábado 28\/11\/2026 a las 21:30/);
+test('la invitación al grupo lleva día, hora, cómo llegar y pide confirmar, sin el link de la promo', () => {
+  const text = groupMessage({ name: 'Sofi', date: '2026-11-28', time: '21:30' });
+  assert.match(text, /^🎓🎉 ¡Te invito a mi recibida en bar Verdel! 🍻/);
+  assert.match(text, /📅 Sábado 28\/11\/2026\n🕘 21:30 hs\n📍 Chacabuco y Las Piedras/);
+  assert.match(text, /Cómo llegar: https:\/\/www\.google\.com\/maps\//);
   assert.match(text, /¡Te espero para compartir y pasarla lindo!/);
-  assert.match(text, /\?v=wa$/);
+  assert.match(text, /Confirmame si venís/);
+  assert.doesNotMatch(text, /recibidos\.html/);
+});
+
+test('sin hora la invitación no deja un renglón vacío', () => {
+  const text = groupMessage({ date: '2026-11-28', time: '' });
+  assert.match(text, /📅 Sábado 28\/11\/2026\n📍/);
 });
 
 test('la reserva lleva día, cantidad y código, y omite lo que quedó vacío', () => {

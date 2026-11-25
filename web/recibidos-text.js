@@ -44,15 +44,22 @@ export function questionMessage(code) {
   return `Hola Verdel, tengo una consulta sobre la promo de recibidos (código ${code}).`;
 }
 
-export function groupMessage(fields, url) {
+export const MAP_URL = 'https://www.google.com/maps/search/?api=1&query=Verdell%20Batalla%20de%20Chacabuco%20293%20San%20Miguel%20de%20Tucum%C3%A1n';
+
+export function groupMessage(fields) {
   const day = partyDate(fields.date);
   const time = clean(fields.time);
   return [
-    '🎓 ¡Te invito a mi recibida en bar Verdel (Chacabuco y Las Piedras)!',
-    day && `📅 El ${day}${time ? ` a las ${time}` : ''}.`,
-    '¡Te espero para compartir y pasarla lindo! 🍻',
-    url,
-  ].filter(Boolean).join('\n');
+    '🎓🎉 ¡Te invito a mi recibida en bar Verdel! 🍻',
+    '',
+    day ? `📅 ${day.charAt(0).toUpperCase()}${day.slice(1)}` : null,
+    time ? `🕘 ${time} hs` : null,
+    '📍 Chacabuco y Las Piedras',
+    `🗺️ Cómo llegar: ${MAP_URL}`,
+    '',
+    '🥳 ¡Te espero para compartir y pasarla lindo!',
+    '🙌 Confirmame si venís así guardamos tu lugar en la mesa.',
+  ].filter((line) => line !== null).join('\n');
 }
 
 export function whatsappLink(phone, text) {
