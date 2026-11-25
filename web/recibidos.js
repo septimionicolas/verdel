@@ -5,7 +5,6 @@ const hint = document.getElementById('hint');
 const peopleNote = document.getElementById('people-note');
 const source = sourceTag(location.search);
 const code = couponCode(source, crypto.getRandomValues(new Uint8Array(4)));
-const shareUrl = `${location.origin}${location.pathname}?v=wa`;
 
 function fields() {
   return Object.fromEntries(new FormData(form));
@@ -47,7 +46,7 @@ function reserve(event) {
 function refresh() {
   const data = fields();
   peopleNote.hidden = !(Number.parseInt(data.people, 10) < MIN_PEOPLE);
-  document.getElementById('group').href = `https://wa.me/?text=${encodeURIComponent(groupMessage(data, shareUrl))}`;
+  document.getElementById('group').href = `https://wa.me/?text=${encodeURIComponent(groupMessage(data))}`;
 }
 
 const call = document.getElementById('call');
