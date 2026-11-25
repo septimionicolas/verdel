@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#06120F">
+<meta name="description" content="¿Se recibe alguien de tu grupo? Hacé gratis el cartel del festejo y llevate 2 litros de Norte de regalo en Verdel.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=Archivo+Black&family=Michroma&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="recibidos.css">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<meta property="og:title" content="¿Se recibe alguien de tu grupo? · Verdel">
+<meta property="og:description" content="Hacé gratis el cartel del festejo y la mesa se lleva 2 litros de Norte de regalo en Verdel.">
+<meta property="og:type" content="website">
+<title>Cartel de recibida · Verdel</title>
+</head>
+<body>
+<main class="page">
+  <header class="intro">
+    <p class="kicker">Verdel · Chacabuco y Las Piedras</p>
+    <h1>¿Se recibe alguien de tu grupo?</h1>
+    <p class="lead">Hacé el cartel gratis, festejalo en Verdel y la mesa se lleva <strong>2 litros de Norte de regalo</strong>.</p>
+  </header>
+
+  <form class="form" id="form" autocomplete="off">
+    <label>Nombre de quien se recibe
+      <input name="name" maxlength="22" required placeholder="Ej.: Sofi">
+    </label>
+    <fieldset class="gender">
+      <legend>El cartel dice</legend>
+      <label><input type="radio" name="gender" value="f" checked> recibida</label>
+      <label><input type="radio" name="gender" value="m"> recibido</label>
+      <label><input type="radio" name="gender" value="x"> recibide</label>
+    </fieldset>
+    <label>Título
+      <select name="degree" id="degree"></select>
+    </label>
+    <label class="other" id="other-wrap" hidden>¿Cuál?
+      <input name="other" maxlength="24" placeholder="Ej.: Licenciada en Nutrición">
+    </label>
+    <label>Facultad o carrera <span class="optional">(opcional)</span>
+      <input name="school" maxlength="34" placeholder="Ej.: Medicina · UNT">
+    </label>
+    <label>Día del festejo
+      <input name="date" id="date" type="date" required>
+    </label>
+    <fieldset class="styles">
+      <legend>Estilo</legend>
+      <label><input type="radio" name="theme" value="night" checked> Noche verde</label>
+      <label><input type="radio" name="theme" value="gold"> Dorado</label>
+      <label><input type="radio" name="theme" value="flour"> Enharinado</label>
+    </fieldset>
+  </form>
+
+  <section class="preview" aria-label="Vista previa">
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" class="tab is-on" data-format="poster" aria-selected="true">Cartel A4</button>
+      <button type="button" role="tab" class="tab" data-format="story" aria-selected="false">Historia</button>
+    </div>
+    <canvas id="canvas" class="canvas" width="1240" height="1754" role="img" aria-label="Vista previa del cartel"></canvas>
+    <div class="actions">
+      <button type="button" class="btn btn-main" id="download">Descargar cartel</button>
+      <button type="button" class="btn" id="share">Compartir</button>
+      <a class="btn" id="whatsapp" href="https://wa.me/" target="_blank" rel="noopener">Avisar al grupo</a>
+    </div>
+    <p class="hint" id="hint" aria-live="polite">Imprimilo en A4 y traelo el día del festejo. En la barra lo sellamos.</p>
+  </section>
+
+  <section class="rules">
+    <h2>Cómo funciona</h2>
+    <ol>
+      <li>Hacé el cartel acá y descargalo.</li>
+      <li>Imprimilo y traelo a Verdel el día del festejo.</li>
+      <li>Mostralo impreso en la barra: lo sellamos, anotamos el código y van 2 litros de Norte a la mesa.</li>
+    </ol>
+    <p class="fine">Mesa de 4 o más. Una promo por recibido, solo el día del festejo y hasta la 1 de la mañana. Válida hasta el 28/02/2027 o hasta agotar stock. El cartel lleva un código que se anota en la barra. Beber con moderación. Prohibida su venta a menores de 18 años.</p>
+  </section>
+</main>
+<script type="module" src="recibidos.js"></script>
+</body>
+</html>
