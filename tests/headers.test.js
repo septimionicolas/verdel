@@ -39,7 +39,7 @@ function assertCommonHeaders(response, where) {
 }
 
 test('las páginas llevan una CSP estricta sin unsafe-inline', async () => {
-  for (const path of ['/', '/index.html', '/moza.html', '/mesas.html']) {
+  for (const path of ['/', '/index.html', '/moza.html', '/mesas.html', '/recibidos.html']) {
     const response = await fetch(`${bases.ready}${path}`);
     assert.equal(response.status, 200, path);
     const policy = assertCommonHeaders(response, path);
@@ -55,7 +55,7 @@ test('las páginas llevan una CSP estricta sin unsafe-inline', async () => {
 });
 
 test('las páginas no traen estilos ni código en línea que la CSP bloquearía', async () => {
-  for (const path of ['/', '/moza.html', '/mesas.html']) {
+  for (const path of ['/', '/moza.html', '/mesas.html', '/recibidos.html']) {
     const html = await (await fetch(`${bases.ready}${path}`)).text();
     assert.doesNotMatch(html, /\sstyle\s*=/i, path);
     assert.doesNotMatch(html, /<style/i, path);
