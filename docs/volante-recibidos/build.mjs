@@ -61,7 +61,7 @@ body { font-family: Archivo, sans-serif; -webkit-print-color-adjust: exact; prin
 .mini b { display: block; margin-top: 1.5mm; font-family: "Archivo Black", sans-serif; font-weight: 400; font-size: 10pt; line-height: 1; }
 .mini strong { display: block; font-family: "Archivo Black", sans-serif; font-weight: 400; font-size: 17pt; line-height: 1.05; color: #F6C443; }
 .mini span { display: block; margin-top: 1.5mm; padding: 1mm; border: .25mm dashed rgba(127,211,106,.6); border-radius: 1mm; font-weight: 800; font-size: 5.2pt; }
-.mini::after { content: "TU CARTEL"; position: absolute; right: -6mm; top: -3mm; padding: .8mm 2mm; border-radius: 99px; background: #F6C443; color: #06120F; font-weight: 900; font-size: 5.5pt; transform: rotate(8deg); }
+.mini::after { content: "TU MESA"; position: absolute; right: -6mm; top: -3mm; padding: .8mm 2mm; border-radius: 99px; background: #F6C443; color: #06120F; font-weight: 900; font-size: 5.5pt; transform: rotate(8deg); }
 .agenda { margin-top: 5mm; display: grid; gap: 3.5mm; font-size: 8.6pt; font-weight: 700; }
 .agenda div { display: flex; gap: 2mm; align-items: flex-end; }
 .agenda div::after { content: ""; flex: 1; border-bottom: .3mm solid #06120F; }
@@ -72,11 +72,11 @@ function front(point) {
   const url = `${SITE}/recibidos.html?v=${point}`;
   return `<section class="card front">
 ${LOGO}
-<h1 class="ask">¿Se recibe tu amiga?<small>¿O tu amigo, tu prima, tu compañero de banco?</small></h1>
-<div class="mini"><i>FESTEJO · VIERNES</i><b>¡SOY LICENCIADA!</b><strong>SOFI</strong><span>ESTE CARTEL VALE 2 L DE NORTE</span></div>
+<h1 class="ask">¿Te recibís?<small>¿O se recibe tu amiga, tu primo, tu compañero de banco?</small></h1>
+<div class="mini"><i>RESERVA · VIERNES 21 H</i><b>FESTEJO DE</b><strong>SOFI</strong><span>MESA DE 6 · 2 L DE NORTE</span></div>
 <div class="gift"><b>2 LITROS DE NORTE</b><span>de regalo para la mesa del festejo</span></div>
-<div class="cta">${qrSvg(url, { dark: '#06120F', light: '#FFFDF5', margin: 4 })}<div><strong>Escaneá y hacé el cartel gratis</strong><em>${SHORT}</em></div></div>
-<p class="terms"><b>Chacabuco y Las Piedras.</b> ${PROMO_TERMS} · con el cartel Verdel sellado en barra.</p>
+<div class="cta">${qrSvg(url, { dark: '#06120F', light: '#FFFDF5', margin: 4 })}<div><strong>Escaneá: mirá tus beneficios y reservá</strong><em>${SHORT}</em></div></div>
+<p class="terms"><b>Chacabuco y Las Piedras.</b> ${PROMO_TERMS} · con reserva.</p>
 <p class="legal">${LEGAL}</p>
 <span class="tag">${point.toUpperCase()}</span>
 </section>`;
@@ -86,9 +86,9 @@ function back(point) {
   return `<section class="card back">
 <h2>Cómo se canjea</h2>
 <ol class="steps">
-<li>Escaneá el QR del frente y hacé el cartel con el nombre y el título.</li>
-<li>Imprimilo en A4 y subí la historia para avisarle al grupo.</li>
-<li>Vengan a Verdel el día del festejo con el cartel impreso: lo sellamos, anotamos el código y van 2 litros a la mesa.</li>
+<li>Escaneá el QR del frente y mirá los beneficios.</li>
+<li>Consultá o reservá por WhatsApp con el día y cuántos son.</li>
+<li>El día del festejo decí tu código en la barra y van 2 litros a la mesa.</li>
 </ol>
 <div class="agenda"><div>Se recibe:</div><div>Festejamos el:</div></div>
 <p class="vig">Promo válida hasta el ${PROMO_END} o hasta agotar stock.</p>

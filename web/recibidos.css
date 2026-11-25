@@ -53,16 +53,26 @@ h1 {
 .lead { margin: 14px 0 0; font-size: 18px; line-height: 1.4; color: var(--mist); }
 .lead strong { color: var(--gold); }
 
-.form, .preview, .rules {
+
+.form, .faq, .benefit {
   padding: 18px;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: rgba(10, 28, 24, .72);
 }
 
+h2 { margin: 0; font-family: "Archivo Black", sans-serif; font-size: 22px; line-height: 1.1; }
+
+.benefits { display: grid; gap: 10px; }
+.benefit { display: grid; gap: 4px; font-size: 15px; line-height: 1.4; color: var(--mist); }
+.benefit b { font-family: "Archivo Black", sans-serif; font-weight: 400; font-size: 19px; color: var(--white); }
+.benefit-main { border-color: var(--gold); background: rgba(246, 196, 67, .1); }
+.benefit-main b { font-size: 24px; color: var(--gold); }
+.code { font: 700 22px Michroma, monospace; letter-spacing: .06em; color: var(--peri); }
+
 .form { display: grid; gap: 14px; }
 
-.form label, .form legend {
+.form label {
   display: grid;
   gap: 6px;
   font-size: 14px;
@@ -72,43 +82,26 @@ h1 {
 
 .optional { font-weight: 400; opacity: .7; }
 
-input, select {
+input {
   width: 100%;
   min-height: 46px;
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: var(--ink);
+  background: rgba(255, 255, 255, .06);
   color: var(--white);
-  font: 500 17px Archivo, system-ui, sans-serif;
+  font: 600 16px Archivo, system-ui, sans-serif;
+  color-scheme: dark;
 }
 
-input:focus, select:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
+input:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
 
-fieldset { margin: 0; padding: 0; border: 0; display: flex; flex-wrap: wrap; gap: 8px; }
-fieldset legend { margin-bottom: 6px; width: 100%; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.note { margin: -6px 0 0; font-size: 13px; color: var(--gold); }
 
-fieldset label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  color: var(--white);
-  cursor: pointer;
-}
-
-fieldset label:has(input:checked) { border-color: var(--gold); background: rgba(246, 196, 67, .12); }
-fieldset input { width: auto; min-height: 0; accent-color: var(--gold); }
-
-.preview { display: grid; gap: 14px; justify-items: center; }
-
-.tabs { display: flex; gap: 6px; }
-
-.tab, .btn {
-  min-height: 44px;
-  padding: 10px 16px;
+.btn {
+  min-height: 46px;
+  padding: 10px 18px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: transparent;
@@ -117,31 +110,28 @@ fieldset input { width: auto; min-height: 0; accent-color: var(--gold); }
   text-decoration: none;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   cursor: pointer;
 }
 
-.tab.is-on { background: var(--white); color: var(--ink); }
-
-.canvas {
-  width: 100%;
-  max-width: 420px;
-  height: auto;
-  border-radius: 8px;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, .5);
-}
-
-.actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.actions .btn-main { flex: 1 1 220px; }
 .btn-main { background: var(--gold); border-color: var(--gold); color: var(--ink); }
-.hint { margin: 0; text-align: center; color: var(--mist); font-size: 14px; }
+.btn-ghost { width: 100%; margin-top: 14px; }
+.hint { margin: 0; color: var(--mist); font-size: 14px; line-height: 1.4; }
 
-.rules h2 { margin: 0 0 8px; font-family: "Archivo Black", sans-serif; font-size: 22px; }
-.rules ol { margin: 0; padding-left: 20px; line-height: 1.6; }
+.faq { display: grid; gap: 4px; }
+.faq h2 { margin-bottom: 6px; }
+details { border-top: 1px solid var(--line); padding: 12px 0; }
+summary { cursor: pointer; font-weight: 700; font-size: 16px; }
+details p { margin: 8px 0 0; line-height: 1.5; color: var(--mist); }
+details .btn { margin-top: 10px; }
 .fine { margin: 12px 0 0; font-size: 13px; line-height: 1.45; color: var(--mist); }
 
 [hidden] { display: none !important; }
 
 @media (min-width: 860px) {
   .page { grid-template-columns: 1fr 1fr; align-items: start; }
-  .intro, .rules { grid-column: 1 / -1; }
-  .preview { position: sticky; top: 16px; }
+  .intro, .benefits { grid-column: 1 / -1; }
+  .benefits { grid-template-columns: repeat(3, 1fr); }
 }
