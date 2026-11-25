@@ -34,10 +34,25 @@ export function reservationMessage(fields, code) {
     clean(fields.degree) && `Se recibe de: ${clean(fields.degree)}`,
     `Día: ${partyDate(fields.date)}${clean(fields.time) ? ` a las ${clean(fields.time)}` : ''}`,
     people > 0 && `Somos: ${people}`,
+    fields.extras?.length && `Para la mesa: ${fields.extras.map(clean).filter(Boolean).join(', ')}`,
     clean(fields.note) && `Comentario: ${clean(fields.note)}`,
     `Código de la promo: ${code}`,
   ];
   return lines.filter(Boolean).join('\n');
+}
+
+// Combos de la carta que se ofrecen para la mesa del festejo: código del producto y opción.
+const MESA_PICKS = [['cp', 0], ['cd', 0], ['no', 1]];
+
+export function mesaExtras(sections) {
+  const items = new Map(sections.flatMap((section) => section.items).map((item) => [item.code, item]));
+  return MESA_PICKS.map(([code, index]) => {
+    const item = items.get(code);
+    const option = item?.options[index];
+    if (!option) return null;
+    const name = option.label ? `${item.name} ${option.label}` : item.name;
+    return { code, name, priceCents: option.priceCents, listCents: option.listCents || 0 };
+  }).filter(Boolean);
 }
 
 export function questionMessage(code) {

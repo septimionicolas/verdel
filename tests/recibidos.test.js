@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { partyDate, sourceTag, couponCode, groupMessage, reservationMessage, whatsappLink } from '../web/recibidos-text.js';
+import { partyDate, sourceTag, couponCode, groupMessage, reservationMessage, whatsappLink, mesaExtras } from '../web/recibidos-text.js';
+import { SECTIONS } from '../web/menu.js';
 
 test('la fecha del festejo sale con día de la semana y sin corrimiento de zona', () => {
   assert.equal(partyDate('2026-11-28'), 'sábado 28/11/2026');
@@ -43,4 +44,17 @@ test('la reserva lleva día, cantidad y código, y omite lo que quedó vacío', 
 test('sin teléfono cargado no se arma un enlace de WhatsApp roto', () => {
   assert.equal(whatsappLink('', 'hola'), null);
   assert.equal(whatsappLink('5493815551234', 'a b'), 'https://wa.me/5493815551234?text=a%20b');
+});
+
+test('los combos elegidos para la mesa viajan en la reserva y sin elegir no aparece el renglón', () => {
+  const base = { name: 'Sofi', date: '2026-12-04', people: '6' };
+  assert.match(reservationMessage({ ...base, extras: ['Pizza común + Norte de litro', ' Norte 3 litros '] }, 'VD-FA-ABCD'), /Para la mesa: Pizza común \+ Norte de litro, Norte 3 litros\n/);
+  assert.doesNotMatch(reservationMessage({ ...base, extras: [] }, 'VD-FA-ABCD'), /Para la mesa/);
+});
+
+test('los combos de la mesa salen de la carta con su precio de promo', () => {
+  const combos = mesaExtras(SECTIONS);
+  assert.deepEqual(combos.map((combo) => combo.name), ['Pizza común + Norte de litro', '12 empanadas + Norte de litro', 'Norte 3 litros']);
+  for (const combo of combos) assert.ok(combo.priceCents > 0 && combo.listCents > combo.priceCents);
+  assert.deepEqual(mesaExtras([]), []);
 });
